@@ -1,0 +1,9 @@
+# Motorlar panelde Pyodide 0.26.4 ile (pandas 2.2, numpy 1.26) çalışıyor; aynı sürüm ailesi kullanılmalı.
+# pandas 3.x ile Ambient motoru metin tipi hatası verir. Python 3.11 veya 3.12 önerilir.
+pandas==2.2.3
+numpy==1.26.4
+openpyxl==3.1.5
+pyarrow==17.0.0
+# İsteğe bağlı: sheet'i herkese açık yapmak yerine servis hesabıyla okumak için
+# google-auth==2.35.0
+# requests==2.32.3

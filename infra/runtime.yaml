@@ -1,0 +1,87 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Strands agent running in AgentCore
+Parameters:
+  Bucket: {Type: String}
+  CodeKey: {Type: String}
+  PoolId: {Type: String}
+  ClientId: {Type: String}
+  ProfileId: {Type: String, Default: us.anthropic.claude-opus-5, AllowedValues: [us.anthropic.claude-opus-5, us.anthropic.claude-opus-5-5]}
+  FoundationModel: {Type: String, Default: anthropic.claude-opus-5, AllowedValues: [anthropic.claude-opus-5, anthropic.claude-opus-5-5]}
+Resources:
+  Memory:
+    Type: AWS::BedrockAgentCore::Memory
+    Properties:
+      Name: rota_memory
+      EventExpiryDuration: 30
+      MemoryStrategies:
+        - UserPreferenceMemoryStrategy:
+            Name: RotaPreferences
+            Namespaces: ['/preferences/{actorId}/']
+  Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal: {Service: bedrock-agentcore.amazonaws.com}
+            Action: sts:AssumeRole
+            Condition:
+              StringEquals: {aws:SourceAccount: !Ref 'AWS::AccountId'}
+              ArnLike: {aws:SourceArn: !Sub 'arn:${AWS::Partition}:bedrock-agentcore:${AWS::Region}:${AWS::AccountId}:*'}
+      Policies:
+        - PolicyName: TedarikRuntime
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: [s3:GetObject, s3:GetObjectVersion]
+                Resource: !Sub 'arn:${AWS::Partition}:s3:::${Bucket}/runtime/*'
+              - Effect: Allow
+                Action: [s3:GetObject, s3:PutObject]
+                Resource: !Sub 'arn:${AWS::Partition}:s3:::${Bucket}/runs/*'
+              - Effect: Allow
+                Action: s3:ListBucket
+                Resource: !Sub 'arn:${AWS::Partition}:s3:::${Bucket}'
+                Condition:
+                  StringLike:
+                    s3:prefix: 'runs/*'
+              - Effect: Allow
+                Action: [bedrock:InvokeModel, bedrock:InvokeModelWithResponseStream]
+                Resource:
+                  - !Sub 'arn:${AWS::Partition}:bedrock:${AWS::Region}:${AWS::AccountId}:inference-profile/${ProfileId}'
+                  - !Sub 'arn:${AWS::Partition}:bedrock:*::foundation-model/${FoundationModel}'
+              - Effect: Allow
+                Action: [logs:CreateLogGroup, logs:CreateLogStream, logs:PutLogEvents, logs:DescribeLogStreams]
+                Resource: !Sub 'arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/bedrock-agentcore/runtimes/*'
+              - Effect: Allow
+                Action: logs:DescribeLogGroups
+                Resource: '*'
+  Runtime:
+    Type: AWS::BedrockAgentCore::Runtime
+    Properties:
+      AgentRuntimeName: tedarik_chat
+      RoleArn: !GetAtt Role.Arn
+      NetworkConfiguration: {NetworkMode: PUBLIC}
+      RequestHeaderConfiguration:
+        RequestHeaderAllowlist: [Authorization]
+      AuthorizerConfiguration:
+        CustomJWTAuthorizer:
+          DiscoveryUrl: !Sub 'https://cognito-idp.${AWS::Region}.${AWS::URLSuffix}/${PoolId}/.well-known/openid-configuration'
+          AllowedClients: [!Ref ClientId]
+      AgentRuntimeArtifact:
+        CodeConfiguration:
+          Code:
+            S3: {Bucket: !Ref Bucket, Prefix: !Ref CodeKey}
+          Runtime: PYTHON_3_11
+          EntryPoint: [main.py]
+      EnvironmentVariables:
+        RUN_BUCKET: !Ref Bucket
+        COGNITO_ISSUER: !Sub 'https://cognito-idp.${AWS::Region}.${AWS::URLSuffix}/${PoolId}'
+        COGNITO_CLIENT_ID: !Ref ClientId
+        MEMORY_ID: !GetAtt Memory.MemoryId
+        MODEL_ID: !Ref ProfileId
+Outputs:
+  MemoryId: {Value: !GetAtt Memory.MemoryId}
+  Arn: {Value: !GetAtt Runtime.AgentRuntimeArn}
+  RuntimeId: {Value: !GetAtt Runtime.AgentRuntimeId}

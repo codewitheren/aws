@@ -1,0 +1,27 @@
+Product ID,Product Name,segments,segment_name,transfer_coli_count,tür,sıra,palet
+5b30d3c4cebeab0004808a00,Kuzeyden Doğal Mineralli Su (330 ml),3,Regular,1080,palet,120,2508
+5a7b1f608e19da0004bb2706,Kuzeyden Doğal Mineralli Su (500 ml),3,Regular,720,palet,120,1764
+5a7b20fd8e19da0004bb27f8,"Kuzeyden Doğal Mineralli Su (1,5 L)",3,Regular,504,palet,126,504
+5bdaa8ae13fd4900121665c3,Kuzeyden Doğal Mineralli Su (1 L),3,Regular,378,palet,126,378
+63e64188ae9b3e290fec7009,Fuska Su (500 ml),3,Regular,252,sıra katı,120,1764
+659fa008133de16aee7b7b17,Abant Su (500 ml),11,Supply Shortage,228,sıra katı,120,1764
+5a7b21f69ccf1d00040084bf,Kuzeyden Doğal Mineralli Su (5 L),3,Regular,160,palet,40,160
+5981ec31e97e8b000484eb96,Erikli Doğal Kaynak Suyu (5 L),3,Regular,160,palet,40,160
+659fa13a840f38903fe72bfe,"Abant Su (1,5 L)",11,Supply Shortage,126,sıra katı,126,504
+6582a9acaeb2c80ce3643aab,"Fuska Su (1,5 L)",3,Regular,126,sıra katı,126,504
+6811ed10ba8812453ab3c152,Hayat Doğal Mineralli Su (5 L),3,Regular,80,yarım palet,40,160
+659fa14bbcb190b6630904de,Abant Su (5 L),3,Regular,80,yarım palet,40,160
+66e29d3a0aa85482a2d3d5b3,Pınar Su (5 L),6,Delist On Depletion,80,yarım palet,40,160
+5fbce44d7d580fc3304aee67,Erikli Doğal Kaynak Suyu (6 x 1 L),3,Regular,48,sıra katı,21,63
+6582a9c2b77a0d5b0a5b63f1,Fuska Su (5 L),3,Regular,40,sıra katı,40,160
+66ab86deeee276842220d0d9,Kuzeyden Doğal Mineralli Su (12 x 200 ml),3,Regular,38,adet,19,266
+5911e8a76dc435000404d472,"Pınar Su (1,5 L)",6,Delist On Depletion,36,adet,126,504
+642c2ad21631f0ea0b9bb3a0,Hayat Su (12 x 500 ml),3,Regular,20,sıra katı,10,147
+66e29d43bbae44b6c5d3b9b0,"Pınar Su (6 x 1,5 L)",6,Delist On Depletion,16,adet,21,84
+66e29d2f798e4ec0b3881644,Pınar Su (12 x 500 ml),6,Delist On Depletion,14,adet,10,147
+5981e929ffae51000428aecd,Erikli Doğal Kaynak Suyu (500 ml),3,Regular,12,adet,120,1764
+6304c187a3a9db67ff436dd2,Erikli Doğal Kaynak Suyu (12 x 500 ml),3,Regular,12,adet,10,147
+6811ea8c1f692e53caa0fb7d,Hayat Doğal Mineralli Su (6 x 1.5 L),3,Regular,8,adet,21,84
+5981eac3ffae51000428afc9,"Erikli Doğal Kaynak Suyu (1,5 L)",11,Supply Shortage,6,adet,126,504
+68711c6b05682ca49ade0362,"Damla Su (6 x 1,5 L)",3,Regular,6,adet,21,84
+6304b87e6c7c1a0eea79e01e,"Erikli Doğal Kaynak Suyu (6 x 1,5 L)",3,Regular,6,adet,21,84

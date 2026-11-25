@@ -1,0 +1,38 @@
+
+=== AMBIENT  (merkez: gsheet İzmir / eski İzmir)
+  gsheet koşusu: 11.1 sn, All PL 9279 satır
+  ✅ Sheet1                         9926 satır × 134 kolon
+  ✅ Depo Ozet Karnesi                53 satır ×  18 kolon
+  ✅ Detayli Kesinti Raporu         1994 satır ×  25 kolon
+  ✅ Layout Uyum Kontrol               2 satır ×   9 kolon
+  ✅ Dikey Palet Kontrol               5 satır ×  11 kolon
+  ✅ Dikey Ellecleme Ozet              9 satır ×  32 kolon
+  ✅ Su DC Mutabakat                  25 satır ×   8 kolon
+  ✅ Sayim Kisiti                      2 satır ×  12 kolon
+  ✅ Su-Ambient Gecis                  2 satır ×  14 kolon
+  ✅ Eksik Su Satirlari              647 satır ×  19 kolon
+  ✅ Eksik Su Depo Ozet               45 satır ×   6 kolon
+  ✅ parquet (ana tablo)            9925 satır × 134 kolon
+
+=== COLD  (merkez: gsheet İzmir / eski İzmir)
+  gsheet koşusu: 4.6 sn, All PL 4221 satır
+  ✅ Sheet1                         4222 satır ×  89 kolon
+  ✅ Transfer                       3562 satır ×   5 kolon
+  ✅ Depo Ozet Karnesi               113 satır ×  11 kolon
+  ✅ Kapasite Detayi                 113 satır ×  36 kolon
+  ✅ Slot Lookahead Kontrol          113 satır ×  21 kolon
+  ✅ Sayim Kisiti                      3 satır ×  12 kolon
+  ✅ Debug Ozet                       66 satır ×   6 kolon
+  ✅ Debug Detay                     223 satır ×  16 kolon
+  ✅ parquet (ana tablo)            4221 satır ×  89 kolon
+
+=== MS  (merkez: gsheet İzmir / eski İzmir)
+  gsheet koşusu: 3.8 sn, All PL 1723 satır
+  ✅ Ana Cikti                      3372 satır ×  47 kolon
+  ✅ Kapasite Detayi                 113 satır ×  28 kolon
+  ✅ Merkez Stok Analizi              86 satır ×  23 kolon
+  ✅ BULK Panel Cikti                428 satır ×   8 kolon
+  ✅ Sayim Kisiti                      3 satır ×  12 kolon
+  ✅ parquet (ana tablo)            3371 satır ×  47 kolon
+
+SONUÇ: ✅ gsheet yolu eski yolla birebir aynı çıktı verdi

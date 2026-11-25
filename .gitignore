@@ -1,0 +1,8 @@
+.tools/
+.venv/
+.build/
+__pycache__/
+*.pyc
+.env*
+.aws/
+node_modules/

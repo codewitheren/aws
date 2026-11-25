@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#123d35"><title>Rota · Transfer planlama</title>
+  <link rel="stylesheet" href="/style.css"><script type="module" src="/app.js"></script>
+</head>
+<body>
+  <aside class="rail">
+    <div class="brand"><i class="mark" aria-hidden="true"></i>Rota</div>
+    <nav id="navigation" aria-label="Transfer planlama" hidden>
+      <button data-view="run">Koşu</button><button data-view="results">Sonuçlar</button>
+    </nav>
+    <div class="railfoot">Transfer planlama</div>
+  </aside>
+  <main>
+    <header><span>Transfer planlama <b>/</b> <strong id="crumb">Giriş</strong></span><button id="logout" hidden>Çıkış yap</button></header>
+    <section id="login" class="login page">
+      <h1>Çalışma alanına giriş</h1>
+      <form id="auth" class="card"><label>Kullanıcı adı<input id="username" autocomplete="username" required></label>
+        <label>Parola<input id="password" type="password" autocomplete="current-password" required></label>
+        <button class="primary" id="submitLogin" disabled>Giriş yap</button></form>
+    </section>
+    <section id="run" class="page" hidden>
+      <h1>Transfer koşusu</h1>
+      <form id="setup" class="card"><h2>Koşu bilgileri</h2><div class="fields">
+        <label>İş tarihi<input type="date" id="date" required></label>
+        <label>Merkez<select id="center"><option>İzmir</option><option>Maltepe</option><option>Ankara</option><option>Adana</option><option>Arnavutköy</option><option>Diyarbakır</option></select></label>
+        <label>Transfer tipi<select id="kind"><option value="amb">Ambient &amp; Su</option><option value="cold">Cold (+4)</option><option value="ms">Meyve &amp; Sebze</option></select></label>
+      </div><button class="primary">Girdileri kontrol et</button></form>
+      <section id="review" class="card" hidden><h2>Öneri incelemesi</h2><p id="coverage"></p>
+        <div id="findings"></div><div class="actions"><button id="all" hidden>Kalan önerileri kabul et</button>
+        <button id="skip" hidden>Kalanları olduğu gibi bırak</button>
+        <button class="primary" id="finish">Motoru çalıştır</button><button id="restart">Yeni koşu</button></div></section>
+    </section>
+    <section id="results" class="page" hidden>
+      <h1>Koşu sonuçları</h1><p id="context"></p><div id="metrics" class="metrics"></div>
+      <div id="output" hidden>
+        <section class="card"><h2>Kontroller ve uyarılar</h2><div id="alerts"></div></section>
+        <section class="card"><h2>Koşu dosyaları</h2><div class="actions">
+          <button data-file="transfer.xlsx">Transfer Excel’i</button><button data-file="uyarilar.csv">Uyarılar CSV</button><button data-file="anomaliler.csv">Anomaliler CSV</button>
+        </div></section>
+        <form id="ask" class="card"><h2>Transfer Agent</h2><label>Bu koşu hakkında sor<input id="question" maxlength="2000" required placeholder="Bu depoda neden kısıldı?"></label><button>Sor</button><p id="answer" aria-live="polite"></p></form>
+      </div>
+    </section>
+    <p id="status" role="status" aria-live="polite"></p>
+  </main>
+</body></html>
