@@ -7,7 +7,7 @@ import { forecastName, nf } from '../lib/format';
 import type { AgentClient } from './client';
 import { readEventStream } from './sse';
 import type {
-  ApprovalOutcome, ApprovalRequest, ApprovalResolution, ChatEvent, RunEvent, TransferTypeId,
+  ApprovalOption, ApprovalOutcome, ApprovalRequest, ChatEvent, RunEvent, TransferTypeId,
 } from './types';
 
 // ---- Yapılandırma ve giriş ----
@@ -140,11 +140,19 @@ async function invoke<T>(session: string, payload: Record<string, unknown>, sign
   return out.result;
 }
 
-// ---- Backend veri biçimleri ----
+// ---- Backend veri biçimleri (agent/transfer_runs.py, agent/transfer/preflight.py) ----
 
-export interface Finding {
-  row: number; depot: string; product: string; domain: string;
-  current: number; proposed: number; batch: number; median: number; mean: number; limit: number;
+/** Bir bulgunun önerdiği tek satır değişikliği (depo × ürün). */
+export interface Edit {
+  depotCode: string; productCode: string; depot: string; product: string; domain: string;
+  current: number; proposed: number; batch: number; unit: string; reason: string;
+  median?: number; evidence: string;
+}
+
+/** İnceleme bulgusu. `uyari` bulguları karar ister; `edits` varsa miktar önerisidir. `hata` optimizasyonu durdurur. */
+export interface Check {
+  id: string; phase: string; level: 'hata' | 'uyari' | 'bilgi';
+  title: string; evidence: string; source: string; edits?: Edit[];
 }
 
 export interface BackendSummary {
@@ -156,13 +164,13 @@ export interface BackendSummary {
   applied: number; reviewed: number;
 }
 
-interface BackendState {
-  stage: 'empty' | 'review' | 'ready';
+interface Page { checks: Check[]; remaining: number; offset: number }
+
+interface BackendState extends Partial<Page> {
+  stage: 'empty' | 'review' | 'blocked' | 'ready';
   center?: string; kind?: 'amb' | 'cold' | 'ms'; date?: string;
-  rows?: number; unknownDomain?: number;
-  findings?: Finding[];
+  rows?: number; legacy?: boolean;
   summary?: BackendSummary;
-  changes?: Record<string, number>;
 }
 
 export interface LiveRun {
@@ -170,9 +178,11 @@ export interface LiveRun {
   merkez: string;
   transferType: TransferTypeId;
   runDate: string;
-  findings: Finding[];
+  /** Şimdiye kadar getirilen bulgular (sayfa sayfa). */
+  checks: Check[];
+  /** Bulgu kimliği → satır başına yeni miktar (null: olduğu gibi). Yalnız bu tarayıcı oturumunda bilinir. */
+  decisions: Record<string, (number | null)[] | null>;
   summary: BackendSummary | null;
-  changes: Record<string, number>;
 }
 
 const KIND: Record<TransferTypeId, 'amb' | 'cold' | 'ms'> = { amb: 'amb', c4: 'cold', ms: 'ms' };
@@ -191,8 +201,10 @@ function todayIstanbul(): string {
   return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Istanbul' }).format(new Date());
 }
 
+export type RunFile = 'transfer.xlsx' | 'transfer.parquet' | 'uyarilar.csv' | 'anomaliler.csv';
+
 /** Bu optimizasyonun bir dosyasını indirir (5 dakikalık imzalı bağlantı). */
-export async function downloadRunFile(name: 'transfer.xlsx' | 'uyarilar.csv' | 'anomaliler.csv'): Promise<void> {
+export async function downloadRunFile(name: RunFile): Promise<void> {
   const run = liveRun();
   if (!run) throw new Error('Önce bir optimizasyon tamamlanmalı.');
   const { url } = await invoke<{ url: string }>(run.session, { action: 'download', name });
@@ -213,65 +225,109 @@ export function fetchDepot<T>(name: string): Promise<T> {
 
 // ---- Onay kartları ----
 
+const OFFICIAL = 'official';
 const snap = (value: number, batch: number) => Math.floor(value / batch + 1e-9) * batch;
+const needsDecision = (c: Check) => c.level === 'uyari';
+const qty = (n: number, unit: string) => `${nf(n)} ${unit}`;
 
-function approvalFor(f: Finding, index: number, total: number): ApprovalRequest {
+function editLines(edits: Edit[]): string {
+  const shown = edits.slice(0, 4).map((e) => `${e.depot}: ${qty(e.current, e.unit)} → ${qty(e.proposed, e.unit)}`);
+  return shown.join(' · ') + (edits.length > 4 ? ` · +${edits.length - 4} depo` : '');
+}
+
+function approvalFor(c: Check, index: number, total: number, more: number): ApprovalRequest {
+  const edits = c.edits ?? [];
   const left = total - index;
+  // Sonraki sayfalardaki bulgu sayısı (bilgi dahil) henüz bilinmiyor; sayıya katılmaz, yalnız belirtilir.
+  const tail = more > 0 ? ' (sonraki sayfalar dahil)' : '';
+  const bulk = (accept: boolean): ApprovalOption[] => left > 0 || more > 0
+    ? [{ id: accept ? 'accept_all_remaining' : 'reject_all_remaining',
+        label: accept ? `Evet, kalan bulgularda da önerileri uygula${tail}` : `Kalan bulguları olduğu gibi bırak${tail}` }]
+    : [];
+  const base = {
+    approvalId: 'check-' + c.id, index, total, findingKey: c.id,
+    depotId: edits[0]?.depot ?? '', title: forecastName(c.title), metric: 'oneri' as const,
+  };
+  if (!edits.length) {
+    return {
+      ...base,
+      found: forecastName(c.evidence),
+      proposal: 'Miktar değişikliği önerilmiyor; girdiyi bilerek devam etmeniz gerekiyor.',
+      howApplied: `Kaynak: ${forecastName(c.source)}. Girdi düzeltilecekse kaynağında düzeltip optimizasyonu yeniden başlatın.`,
+      impact: 'Devam ederseniz motor bu girdiyle çalışır.',
+      question: 'Bu uyarıyla devam edeyim mi?',
+      currentValue: 0, proposedValue: 0, reference: { group: '', mean: 0, median: 0 },
+      options: [{ id: 'accept', label: 'Gördüm, devam et' }, ...bulk(false)],
+      instruction: { allowed: false, placeholder: '' },
+    };
+  }
+  const now = edits.reduce((s, e) => s + e.current, 0);
+  const next = edits.reduce((s, e) => s + e.proposed, 0);
+  const unit = edits[0].unit;
+  const first = edits[0];
   return {
-    approvalId: 'row-' + f.row,
-    index, total,
-    findingKey: String(f.row),
-    depotId: f.depot,
-    title: `${f.depot} · ${f.product}`,
-    found: `Forecast bu ürün için ${f.depot} deposuna ${nf(f.current)} adet öneriyor. Aynı ürünün diğer ${f.domain} depolardaki önerisi medyan ${nf(f.median)}, ortalama ${nf(f.mean, 1)}; aykırılık üst sınırı ${nf(f.limit, 1)}.`,
-    proposal: `Öneriyi medyana göre sipariş katına (${nf(f.batch)}) çekmek: ${nf(f.current)} → ${nf(f.proposed)} (−${nf(f.current - f.proposed)} adet).`,
-    howApplied: 'Yalnızca bu optimizasyonda, kesim motorundan önce çalışma kopyasındaki Effective quantity alanına yazılır. Forecast kaydı değişmez.',
-    impact: `${f.depot} önerisi ${nf(f.current - f.proposed)} adet azalır; kesim motoru kalan öneriyle çalışır.`,
-    question: `Medyana (${nf(f.proposed)}) çekeyim mi?`,
-    metric: 'oneri',
-    currentValue: f.current,
-    proposedValue: f.proposed,
-    reference: { group: f.domain, mean: f.mean, median: f.median },
+    ...base,
+    found: forecastName(edits.length === 1 ? first.evidence : `${c.evidence} ${first.depot}: ${first.evidence}`),
+    proposal: `${edits.length === 1 ? 'Öneriyi' : `${nf(edits.length)} depoda öneriyi`} düşürmek: ${editLines(edits)}.`,
+    howApplied: 'Yalnızca bu optimizasyonda, motor çalışmadan önce girdi kopyasına yazılır ve revize kaydına girer. Forecast kaydı değişmez.',
+    impact: `Toplam öneri ${qty(now, unit)} → ${qty(next, unit)} (−${qty(now - next, unit)}).`,
+    question: edits.length === 1 ? `${nf(first.proposed)} ${unit} olarak uygulayayım mı?` : 'Önerilen miktarları uygulayayım mı?',
+    currentValue: now, proposedValue: next,
+    reference: { group: first.domain, mean: 0, median: first.median ?? 0 },
     options: [
-      { id: 'accept', label: `Evet, medyana çek (${nf(f.proposed)})` },
-      ...(left > 0 ? [{ id: 'accept_all_remaining' as const, label: `Evet, kalan ${nf(left)} bulguyu da sormadan medyana çek` }] : []),
-      { id: 'reject', label: `Hayır, olduğu gibi bırak (${nf(f.current)})` },
-      ...(left > 0 ? [{ id: 'reject_all_remaining' as const, label: `Hayır, kalan ${nf(left)} bulguyu da olduğu gibi bırak` }] : []),
+      { id: 'accept', label: 'Evet, önerilen miktarları uygula' }, ...bulk(true),
+      { id: 'reject', label: 'Hayır, olduğu gibi bırak' }, ...bulk(false),
     ],
-    instruction: { allowed: true, placeholder: 'ör. ortalamaya çek, 20 ile sınırla' },
+    instruction: { allowed: true, placeholder: 'ör. 20 ile sınırla, medyana çek' },
   };
 }
 
-/** Serbest talimat: sayı → o sayıyla sınırla, "ortalama" / "medyan" → çek. Değer sipariş katına yuvarlanır. */
-function interpret(text: string, f: Finding): { outcome: ApprovalOutcome; summary: string; note?: string } {
+function officialApproval(run: LiveRun, leaveRemaining: number): ApprovalRequest {
+  const applied = Object.values(run.decisions).filter((d) => d?.some((v) => v !== null));
+  const lines = applied.reduce((s, d) => s + (d?.filter((v) => v !== null).length ?? 0), 0);
+  return {
+    approvalId: OFFICIAL, index: 1, total: 1, findingKey: OFFICIAL, depotId: '',
+    title: 'Resmi optimizasyonu çalıştır',
+    found: `${nf(Object.keys(run.decisions).length)} bulguya karar verdiniz; ${nf(lines)} satırda miktar değişecek.`
+      + (leaveRemaining ? ` Gösterilmeyen ${nf(leaveRemaining)} bulgu olduğu gibi bırakılacak.` : ''),
+    proposal: 'Kesim motoru onaylanan miktarlarla resmi çıktıyı üretir.',
+    howApplied: 'Değişiklikler yalnız bu optimizasyonun girdi kopyasına ve revize kaydına yazılır.',
+    impact: 'Sonuçlar, transfer dosyası ve uyarılar hazır olur.',
+    question: 'Resmi optimizasyonu çalıştırayım mı?',
+    metric: 'oneri', currentValue: 0, proposedValue: 0, reference: { group: '', mean: 0, median: 0 },
+    options: [{ id: 'accept', label: 'Evet, resmi optimizasyonu çalıştır' }, { id: 'reject', label: 'Hayır, kararlarımı baştan gözden geçir' }],
+    instruction: { allowed: false, placeholder: '' },
+  };
+}
+
+/** Serbest talimat: sayı → her satırı o sayıyla sınırla; "medyan" → önerilen miktar. Sipariş katına yuvarlanır. */
+function interpret(text: string, edits: Edit[]): (number | null)[] | null {
   const t = text.toLocaleLowerCase('tr-TR');
   const m = t.match(/\d{1,3}(?:\.\d{3})+(?!\d)|\d+(?:,\d+)?/);
-  let value: number | null = null;
-  let method: 'instruction' | 'mean' | 'median' = 'instruction';
-  if (m) value = snap(Number(m[0].replace(/\./g, '').replace(',', '.')), f.batch);
-  else if (t.includes('ortalama')) { value = Math.max(f.batch, snap(f.mean, f.batch)); method = 'mean'; }
-  else if (t.includes('medyan')) { value = f.proposed; method = 'median'; }
-  if (value === null) {
-    return { outcome: { kind: 'unchanged', reason: 'instruction_note' }, summary: `Olduğu gibi bırakıldı (${nf(f.current)}) · not alındı`, note: text };
+  if (m) {
+    const cap = Number(m[0].replace(/\./g, '').replace(',', '.'));
+    const values = edits.map((e) => { const v = snap(Math.min(cap, e.current), e.batch); return v < e.current ? v : null; });
+    return values.some((v) => v !== null) ? values : null;
   }
-  if (!(value >= 0 && value < f.current)) {
-    return { outcome: { kind: 'unchanged', reason: 'instruction_not_lower' }, summary: `Değiştirilmedi: ${nf(value)}, mevcut önerinin (${nf(f.current)}) altında değil`, note: text };
-  }
-  const how = method === 'mean' ? 'Ortalamaya çekildi' : method === 'median' ? 'Medyana çekildi' : 'Talimatla sınırlandı';
-  return { outcome: { kind: 'applied', value, method }, summary: `${how} (${nf(f.current)} → ${nf(value)})`, note: method === 'instruction' ? text : undefined };
+  if (t.includes('medyan') || t.includes('öneri')) return edits.map((e) => e.proposed);
+  return null;
 }
 
 // ---- İstemci ----
 
 interface Active {
   run: LiveRun;
-  decided: Map<number, ApprovalResolution>;
   emit: (e: RunEvent) => void;
   signal: AbortSignal;
+  remaining: number;
+  offset: number;
+  awaitingOfficial: boolean;
+  leaveRemaining: boolean;
 }
 
 export function createAgentCoreClient(): AgentClient {
   let active: Active | null = null;
+  const chat: { question: string; answer: string }[] = [];
 
   const fail = (a: Active, err: unknown) => {
     if (a.signal.aborted) return;
@@ -283,22 +339,43 @@ export function createAgentCoreClient(): AgentClient {
     run: { runId: a.run.session, merkez: a.run.merkez, transferType: a.run.transferType, transferTypeLabel: TYPE_LABEL[a.run.transferType], runDate: a.run.runDate },
   });
 
-  const askNext = (a: Active) => {
-    const i = a.run.findings.findIndex((f) => !a.decided.has(f.row));
-    if (i === -1) return void finish(a);
-    a.emit({ type: 'approval_requested', runId: a.run.session, approval: approvalFor(a.run.findings[i], i + 1, a.run.findings.length) });
+  const pendingChecks = (a: Active) => a.run.checks.filter((c) => needsDecision(c) && !(c.id in a.run.decisions));
+
+  /** Sonraki sayfayı getirir; bulguları listeye ekler. */
+  const nextPage = async (a: Active) => {
+    const page = await invoke<Page>(a.run.session, { action: 'review_page', offset: a.offset + 10 }, a.signal);
+    a.run.checks.push(...page.checks);
+    a.offset = page.offset;
+    a.remaining = page.remaining;
+  };
+
+  const askNext = async (a: Active) => {
+    try {
+      while (!pendingChecks(a).length && a.remaining > 0 && !a.leaveRemaining) await nextPage(a);
+    } catch (err) {
+      return fail(a, err);
+    }
+    const asked = a.run.checks.filter(needsDecision);
+    const pending = pendingChecks(a);
+    if (!pending.length) {
+      a.awaitingOfficial = true;
+      a.emit({ type: 'approval_requested', runId: a.run.session, approval: officialApproval(a.run, a.leaveRemaining ? a.remaining : 0) });
+      return;
+    }
+    const c = pending[0];
+    a.emit({ type: 'approval_requested', runId: a.run.session,
+      approval: approvalFor(c, asked.indexOf(c) + 1, asked.length, a.remaining) });
   };
 
   const completed = (a: Active, s: BackendSummary) => {
     const id = a.run.session;
     const count = (l: string) => s.alerts.filter((x) => x.level === l).length;
-    const applied = Object.keys(a.run.changes).length;
     const cutPct = s.cut.adet ?? Object.values(s.cut)[0];
     a.emit({ type: 'step_completed', runId: id, step: 'cutting_engine', detail: `${nf(s.sent)} satır gönderiliyor` });
     a.emit({ type: 'step_started', runId: id, step: 'agent_checks' });
     a.emit({ type: 'check_progress', runId: id, check: 'run_integrity', status: 'done', detail: 'Merkez eşleşmesi ve All PL doğrulandı' });
     a.emit({ type: 'check_progress', runId: id, check: 'faulty_output', status: 'done', detail: `${count('hata')} kritik bulgu` });
-    a.emit({ type: 'check_progress', runId: id, check: 'relex_anomalies', status: 'done', detail: `${nf(s.reviewed)} aykırı öneri incelendi` });
+    a.emit({ type: 'check_progress', runId: id, check: 'relex_anomalies', status: 'done', detail: `${nf(s.reviewed)} bulgu incelendi, ${nf(s.applied)} satır revize edildi` });
     a.emit({ type: 'check_progress', runId: id, check: 'depot_cuts', status: 'done', detail: cutPct !== undefined ? `Kısma oranı %${nf(cutPct, 1)}` : 'Tamamlandı' });
     a.emit({ type: 'step_completed', runId: id, step: 'agent_checks' });
     a.emit({ type: 'step_completed', runId: id, step: 'ready' });
@@ -308,7 +385,7 @@ export function createAgentCoreClient(): AgentClient {
         headline: `${s.center} ${TYPE_LABEL[a.run.transferType]} optimizasyonu hazır: ${nf(s.suggested)} öneri satırı, ${nf(s.sent)} satır gönderiliyor`
           + (cutPct !== undefined ? `, kısma oranı %${nf(cutPct, 1)}.` : '.') + ` ${count('hata')} kritik, ${count('uyari')} uyarı var.`,
         counts: { kritik: count('hata'), uyari: count('uyari'), bilgi: count('bilgi') },
-        corrections: { applied, unchanged: s.reviewed - applied },
+        corrections: { applied: s.applied, unchanged: Math.max(0, s.reviewed - s.applied) },
         finishedAt: new Date().toISOString(),
         resultsAvailable: true,
       },
@@ -317,22 +394,17 @@ export function createAgentCoreClient(): AgentClient {
 
   const finish = async (a: Active) => {
     const id = a.run.session;
-    const applied = [...a.decided.values()].filter((r) => r.outcome.kind === 'applied').length;
-    if (a.run.findings.length) {
-      a.emit({ type: 'step_completed', runId: id, step: 'outlier_review', detail: `${applied} düzeltme, ${a.decided.size - applied} öneri olduğu gibi` });
-    }
+    a.emit({ type: 'step_completed', runId: id, step: 'outlier_review',
+      detail: `${nf(Object.keys(a.run.decisions).length)} karar · resmi optimizasyon onaylandı` });
     a.emit({ type: 'step_started', runId: id, step: 'cutting_engine' });
     a.emit({ type: 'step_progress', runId: id, step: 'cutting_engine', detail: 'Motor çalışıyor; büyük merkezlerde birkaç dakika sürebilir' });
-    const changes: Record<string, number> = {};
-    for (const f of a.run.findings) {
-      const r = a.decided.get(f.row);
-      if (r?.outcome.kind === 'applied') changes[String(f.row)] = r.outcome.value;
-    }
     try {
-      const state = await invoke<BackendState>(id, { action: 'finish', changes }, a.signal);
+      const state = await invoke<BackendState>(id, {
+        action: 'finish', approveOfficial: true, decisions: a.run.decisions, offset: a.offset,
+        leaveRemaining: a.remaining > 0,
+      }, a.signal);
       if (state.stage !== 'ready' || !state.summary) throw new Error('Motor sonucu alınamadı.');
       a.run.summary = state.summary;
-      a.run.changes = state.changes ?? changes;
       current = a.run;
       completed(a, state.summary);
     } catch (err) {
@@ -340,66 +412,77 @@ export function createAgentCoreClient(): AgentClient {
     }
   };
 
+  /** prepare/status yanıtındaki inceleme durumundan devam eder. */
+  const review = (a: Active, state: BackendState) => {
+    const id = a.run.session;
+    const checks = state.checks ?? [];
+    a.run.checks = [...checks];
+    a.offset = state.offset ?? 0;
+    a.remaining = state.remaining ?? 0;
+    const errors = checks.filter((c) => c.level === 'hata');
+    if (state.stage === 'blocked' || errors.length) {
+      const why = state.legacy ? 'Bu inceleme eski sürümle başlatılmış; yeni optimizasyon başlatın.'
+        : errors.map((c) => `${forecastName(c.title)}: ${forecastName(c.evidence)}`).join(' · ');
+      a.emit({ type: 'step_completed', runId: id, step: 'relex_read', detail: 'Kritik girdi hatası; motor çalıştırılmadı' });
+      return fail(a, new Error('Girdi düzeltilmeden optimizasyon çalışmaz. ' + why));
+    }
+    const total = checks.length + a.remaining;
+    const info = checks.filter((c) => c.level === 'bilgi').length;
+    a.emit({ type: 'step_completed', runId: id, step: 'relex_read',
+      detail: `${nf(state.rows ?? 0)} öneri satırı okundu · ${nf(total)} bulgu` + (info && !a.remaining ? ` (${nf(info)} bilgi)` : '') });
+    a.emit({ type: 'step_started', runId: id, step: 'outlier_review' });
+    a.emit({ type: 'step_progress', runId: id, step: 'outlier_review', detail: 'Uyarılar için kararınız bekleniyor' });
+    void askNext(a);
+  };
+
   const begin = (run: LiveRun, onEvent: (e: RunEvent) => void) => {
     const controller = new AbortController();
-    const a: Active = { run, decided: new Map(), emit: (e) => !controller.signal.aborted && onEvent(e), signal: controller.signal };
+    const a: Active = { run, emit: (e) => !controller.signal.aborted && onEvent(e), signal: controller.signal,
+      remaining: 0, offset: 0, awaitingOfficial: false, leaveRemaining: false };
     active = a;
     return { a, handle: { abort: () => controller.abort() } };
   };
+
+  const newRun = (session: string, merkez: string, transferType: TransferTypeId, runDate: string): LiveRun =>
+    ({ session, merkez, transferType, runDate, checks: [], decisions: {}, summary: null });
 
   return {
     mode: 'agentcore',
 
     startRun(command, onEvent) {
-      const run: LiveRun = {
-        session: crypto.randomUUID(), merkez: command.merkez, transferType: command.transferType,
-        runDate: todayIstanbul(), findings: [], summary: null, changes: {},
-      };
       doneRestoring(); // yeni optimizasyon, yarım kalan geri yüklemenin yerini alır
+      const run = newRun(crypto.randomUUID(), command.merkez, command.transferType, todayIstanbul());
       writeStore(RUN_KEY, { session: run.session, merkez: run.merkez, transferType: run.transferType, runDate: run.runDate });
+      chat.length = 0;
       const { a, handle } = begin(run, onEvent);
       started(a);
       a.emit({ type: 'step_started', runId: run.session, step: 'relex_read' });
-      a.emit({ type: 'step_progress', runId: run.session, step: 'relex_read', detail: 'Google Sheets girdileri okunuyor ve öneriler karşılaştırılıyor…' });
+      a.emit({ type: 'step_progress', runId: run.session, step: 'relex_read', detail: 'Girdiler okunuyor, kontroller ve taslak motor çalışıyor…' });
       invoke<BackendState>(run.session, { action: 'prepare', center: run.merkez, kind: KIND[run.transferType], date: run.runDate }, a.signal)
-        .then((state) => {
-          run.findings = state.findings ?? [];
-          a.emit({ type: 'step_completed', runId: run.session, step: 'relex_read',
-            detail: `${nf(state.rows ?? 0)} öneri satırı okundu` + (state.unknownDomain ? ` · ${nf(state.unknownDomain)} satırda depo tipi eksik` : '') });
-          a.emit({ type: 'step_started', runId: run.session, step: 'outlier_review' });
-          if (!run.findings.length) {
-            a.emit({ type: 'step_completed', runId: run.session, step: 'outlier_review', detail: 'Aykırı öneri bulunmadı' });
-          } else {
-            a.emit({ type: 'step_progress', runId: run.session, step: 'outlier_review', detail: `${nf(run.findings.length)} aykırı öneri buldum. Onayınız bekleniyor` });
-          }
-          askNext(a);
-        })
+        .then((state) => review(a, state))
         .catch((err) => fail(a, err));
       return handle;
     },
 
     /** Sayfa yenilenince bu sekmedeki son optimizasyonu backend'den geri yükler. */
     resume(onEvent) {
-      const saved = readStore<Omit<LiveRun, 'findings' | 'summary' | 'changes'>>(RUN_KEY);
+      const saved = readStore<{ session: string; merkez: string; transferType: TransferTypeId; runDate: string }>(RUN_KEY);
       if (!saved || !tokens) {
         doneRestoring();
         return null;
       }
-      const run: LiveRun = { ...saved, findings: [], summary: null, changes: {} };
+      const run = newRun(saved.session, saved.merkez, saved.transferType, saved.runDate);
       const { a, handle } = begin(run, onEvent);
       invoke<BackendState>(run.session, { action: 'status' }, a.signal)
         .then((state) => {
           if (state.stage === 'empty') return;
           if (state.kind) run.transferType = TYPE_OF[state.kind];
           started(a);
-          run.findings = state.findings ?? [];
-          a.emit({ type: 'step_completed', runId: run.session, step: 'relex_read', detail: `${nf(state.rows ?? 0)} öneri satırı okundu` });
-          a.emit({ type: 'step_started', runId: run.session, step: 'outlier_review' });
-          if (state.stage === 'review') return askNext(a);
+          if (state.stage !== 'ready') return review(a, state);
           run.summary = state.summary!;
-          run.changes = state.changes ?? {};
           current = run;
-          a.emit({ type: 'step_completed', runId: run.session, step: 'outlier_review', detail: `${nf(Object.keys(run.changes).length)} düzeltme uygulandı` });
+          a.emit({ type: 'step_completed', runId: run.session, step: 'relex_read', detail: `${nf(state.rows ?? 0)} öneri satırı okundu` });
+          a.emit({ type: 'step_completed', runId: run.session, step: 'outlier_review', detail: `${nf(run.summary.applied)} satır revize edildi` });
           completed(a, run.summary);
         })
         .catch((err) => fail(a, err))
@@ -410,31 +493,58 @@ export function createAgentCoreClient(): AgentClient {
     async respondToApproval(command) {
       const a = active;
       if (!a || a.run.session !== command.runId) throw new Error('Bu onay süren optimizasyona ait değil.');
-      const pending = a.run.findings.filter((f) => !a.decided.has(f.row));
-      const f = pending[0];
-      if (!f || 'row-' + f.row !== command.approvalId) throw new Error('Bu öneri zaten yanıtlandı.');
       const r = command.response;
-      const resolve = (x: Finding, outcome: ApprovalOutcome, summary: string, decidedBy: 'user' | 'bulk', note?: string) => {
-        const resolution: ApprovalResolution = {
-          approvalId: 'row-' + x.row, findingKey: String(x.row), title: `${x.depot} · ${x.product}`,
-          originalValue: x.current, outcome, summary, decidedBy, note,
-        };
-        a.decided.set(x.row, resolution);
-        a.emit({ type: 'approval_resolved', runId: a.run.session, resolution });
-      };
-      const accept = (x: Finding, by: 'user' | 'bulk') =>
-        resolve(x, { kind: 'applied', value: x.proposed, method: 'median' }, `Medyana çekildi (${nf(x.current)} → ${nf(x.proposed)})`, by);
-      const keep = (x: Finding, by: 'user' | 'bulk') =>
-        resolve(x, { kind: 'unchanged', reason: 'rejected' }, `Olduğu gibi bırakıldı (${nf(x.current)})`, by);
-      if (r.kind === 'accept') accept(f, 'user');
-      else if (r.kind === 'reject') keep(f, 'user');
-      else if (r.kind === 'accept_all_remaining') pending.forEach((x, i) => accept(x, i ? 'bulk' : 'user'));
-      else if (r.kind === 'reject_all_remaining') pending.forEach((x, i) => keep(x, i ? 'bulk' : 'user'));
-      else {
-        const t = interpret(r.text, f);
-        resolve(f, t.outcome, t.summary, 'user', t.note);
+      if (a.awaitingOfficial) {
+        if (command.approvalId !== OFFICIAL) throw new Error('Bu öneri zaten yanıtlandı.');
+        a.awaitingOfficial = false;
+        if (r.kind === 'accept') {
+          a.emit({ type: 'approval_resolved', runId: a.run.session, resolution: {
+            approvalId: OFFICIAL, findingKey: OFFICIAL, title: 'Resmi optimizasyon', originalValue: 0,
+            outcome: { kind: 'unchanged', reason: 'rejected' }, summary: 'Onaylandı', decidedBy: 'user' } });
+          return void finish(a);
+        }
+        a.run.decisions = {};
+        a.leaveRemaining = false;
+        a.emit({ type: 'approval_resolved', runId: a.run.session, resolution: {
+          approvalId: OFFICIAL, findingKey: OFFICIAL, title: 'Resmi optimizasyon', originalValue: 0,
+          outcome: { kind: 'unchanged', reason: 'rejected' }, summary: 'Kararlar sıfırlandı', decidedBy: 'user' } });
+        return void askNext(a);
       }
-      askNext(a);
+      const pending = pendingChecks(a);
+      const c = pending[0];
+      if (!c || 'check-' + c.id !== command.approvalId) throw new Error('Bu öneri zaten yanıtlandı.');
+      const decide = (x: Check, values: (number | null)[] | null, by: 'user' | 'bulk', note?: string) => {
+        a.run.decisions[x.id] = values;
+        const edits = x.edits ?? [];
+        const changed = values ? values.filter((v) => v !== null).length : 0;
+        const outcome: ApprovalOutcome = changed
+          ? { kind: 'applied', value: values!.reduce<number>((s, v, i) => s + (v ?? edits[i].current), 0), method: note ? 'instruction' : 'median' }
+          : { kind: 'unchanged', reason: note ? 'instruction_note' : 'rejected' };
+        const summary = !edits.length ? 'Görüldü, devam edildi'
+          : changed ? `${nf(changed)} satır revize edildi` + (edits.length === 1 && values![0] !== null ? ` (${nf(edits[0].current)} → ${nf(values![0]!)})` : '')
+          : 'Olduğu gibi bırakıldı';
+        a.emit({ type: 'approval_resolved', runId: a.run.session, resolution: {
+          approvalId: 'check-' + x.id, findingKey: x.id, title: forecastName(x.title),
+          originalValue: edits.reduce((s, e) => s + e.current, 0), outcome, summary, decidedBy: by, note } });
+      };
+      const proposed = (x: Check) => (x.edits?.length ? x.edits.map((e) => e.proposed) : null);
+      try {
+        if (r.kind === 'accept') decide(c, proposed(c), 'user');
+        else if (r.kind === 'reject') decide(c, null, 'user');
+        else if (r.kind === 'reject_all_remaining') {
+          pending.forEach((x, i) => decide(x, null, i ? 'bulk' : 'user'));
+          a.leaveRemaining = a.remaining > 0;
+        } else if (r.kind === 'accept_all_remaining') {
+          while (a.remaining > 0) await nextPage(a);
+          pendingChecks(a).forEach((x, i) => decide(x, proposed(x), i ? 'bulk' : 'user'));
+        } else {
+          const values = interpret(r.text, c.edits ?? []);
+          decide(c, values, 'user', values ? r.text : `Talimat anlaşılamadı, değişiklik yapılmadı: ${r.text}`);
+        }
+      } catch (err) {
+        return fail(a, err);
+      }
+      void askNext(a);
     },
 
     ask(command, onEvent: (e: ChatEvent) => void) {
@@ -447,8 +557,9 @@ export function createAgentCoreClient(): AgentClient {
         return { abort: () => controller.abort() };
       }
       emit({ type: 'chat_message_started', messageId: id });
-      invoke<{ answer: string }>(run.session, { action: 'explain', question: command.question }, controller.signal)
+      invoke<{ answer: string }>(run.session, { action: 'explain', question: command.question, conversation: chat.slice(-3) }, controller.signal)
         .then(({ answer }) => {
+          chat.push({ question: command.question.slice(0, 2000), answer: answer.slice(0, 5000) });
           emit({ type: 'chat_delta', messageId: id, delta: forecastName(answer) });
           emit({ type: 'chat_message_completed', messageId: id, links: [] });
         })

@@ -52,7 +52,13 @@ def package():
         for source in (ROOT/"agent").glob("*.py"):
             shutil.copy2(source, stage)
         shutil.copytree(ROOT/"agent/transfer", Path(stage)/"transfer",
-                        ignore=shutil.ignore_patterns("__pycache__", "tests", "*.pyc"))
+                        ignore=shutil.ignore_patterns("__pycache__", "tests", "_yedek", "*.pyc"))
+        history = ROOT / "data/data/izmir_gecmis"
+        if history.is_dir():
+            for item in history.glob("*/*/İzmir.parquet"):
+                target = Path(stage) / "transfer/izmir_gecmis" / item.relative_to(history)
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(item, target)
         with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED, compresslevel=5) as archive:
             for file in sorted(Path(stage).rglob("*")):
                 relative = file.relative_to(stage)

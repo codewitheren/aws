@@ -76,6 +76,7 @@ function depotRows(v: View): DepotRow[] {
   }));
 }
 
+const LEVEL_TEXT: Record<string, string> = { hata: 'Kritik', uyari: 'Uyarı', bilgi: 'Bilgi' };
 const LEVEL: Record<string, AlertLevel> = { hata: 'kritik', uyari: 'uyari', bilgi: 'bilgi' };
 
 export const MERKEZLER: MerkezOption[] = ['Maltepe', 'İzmir', 'Adana', 'Arnavutköy', 'Ankara', 'Diyarbakır'].map((ad) => ({
@@ -119,16 +120,25 @@ export async function getResults(): Promise<ResultsData> {
 export async function getAnomalies(): Promise<AnomalyData> {
   const run = await requireRun();
   const v = await view(run);
-  const reviewed = run.findings.map((f) => [
-    f.depot, f.product, f.domain, f.current, f.median, f.proposed,
-    run.changes[String(f.row)] !== undefined ? `Optimizasyonda ${nf(run.changes[String(f.row)])} olarak uygulandı` : 'Olduğu gibi bırakıldı',
-  ]);
+  const edits = run.checks.flatMap((c) => (c.edits ?? []).map((e, i) => {
+    const d = run.decisions[c.id];
+    const v = d ? d[i] : null;
+    return [e.depot, e.product, e.domain, e.current, e.median ?? null, e.proposed, fx(e.evidence),
+      !(c.id in run.decisions) ? 'Gösterilmedi' : v !== null && v !== undefined ? `${nf(v)} olarak uygulandı` : 'Olduğu gibi bırakıldı'];
+  }));
+  const inputs = run.checks.filter((c) => !c.edits?.length).map((c) => [LEVEL_TEXT[c.level], fx(c.title), fx(c.evidence), fx(c.source)]);
   const cards = [
-    ...(reviewed.length ? [{
+    ...(edits.length ? [{
       title: 'Aykırı PL önerileri (agent incelemesi)',
-      subtitle: 'Aynı ürün, aynı depo tipinde IQR üst sınırını aşan öneriler ve optimizasyondaki kararınız.',
-      columns: ['Depo', 'Ürün', 'Depo tipi', 'Öneri', 'Medyan', 'Agent önerisi', 'Optimizasyon durumu'],
-      rows: reviewed,
+      subtitle: 'Forecast önerisinin medyan, satış, stok ve kapasite kanıtına göre düşürülmesi önerilen satırlar ve optimizasyondaki kararınız.',
+      columns: ['Depo', 'Ürün', 'Depo tipi', 'Öneri', 'Medyan', 'Agent önerisi', 'Kanıt', 'Optimizasyon durumu'],
+      rows: edits,
+    }] : []),
+    ...(inputs.length ? [{
+      title: 'Girdi ve parametre kontrolleri',
+      subtitle: 'Optimizasyon öncesi incelemede bulunan girdi eksikleri ve parametre notları.',
+      columns: ['Seviye', 'Bulgu', 'Kanıt', 'Kaynak'],
+      rows: inputs,
     }] : []),
     ...v.kartlar.map((k) => ({ title: fx(k.baslik), subtitle: fx(k.alt ?? ''), columns: k.tablo.kolonlar.map(fx), rows: k.tablo.satirlar })),
   ];

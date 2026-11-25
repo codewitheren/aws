@@ -7,7 +7,8 @@ from functools import lru_cache
 import jwt
 from bedrock_agentcore.runtime import BedrockAgentCoreApp
 from strands.models import BedrockModel
-from transfer_runs import dispatch, explain
+from transfer_runs import dispatch
+from transfer_chat import explain
 
 app = BedrockAgentCoreApp()
 logger = logging.getLogger("tedarik")
@@ -47,9 +48,9 @@ async def invoke(payload, context):
         yield {"error": "Geçerli bir kullanıcı ve optimizasyon oturumu gerekli."}
         return
     action = payload.get("action")
-    if isinstance(action, str) and action in {"prepare", "finish", "status", "download", "explain", "view", "depot"}:
+    if isinstance(action, str) and action in {"prepare", "review_page", "finish", "reopen_review", "status", "download", "explain", "view", "depot"}:
         key = (actor, session)
-        writing = action in {"prepare", "finish"}
+        writing = action in {"prepare", "finish", "reopen_review"}
         if writing and key in active_runs:
             yield {"error": "Bu optimizasyonun işlemi sürüyor. Durumunu biraz sonra yeniden kontrol edin."}
             return
@@ -58,7 +59,7 @@ async def invoke(payload, context):
         try:
             if action == "explain":
                 task = asyncio.create_task(explain(actor, session, payload.get("question"),
-                    BedrockModel(model_id=MODEL, region_name=REGION, max_tokens=4096)))
+                    BedrockModel(model_id=MODEL, region_name=REGION, max_tokens=4096), payload.get("conversation")))
             else:
                 task = asyncio.create_task(asyncio.to_thread(dispatch, actor, session, payload))
             if writing:

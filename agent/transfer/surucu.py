@@ -1515,7 +1515,7 @@ URUNLER['ms'] = {
 
 
 # ================================================================== MOTORLAR (motorlar/ klasöründen, değiştirilmeden)
-_MOTOR_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'motorlar')
+_MOTOR_DIR = os.environ.get('SEVK_MOTOR_DIR', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'motorlar'))
 def _motor_oku(ad):
     with open(os.path.join(_MOTOR_DIR, ad), encoding='utf-8') as f:
         return f.read()

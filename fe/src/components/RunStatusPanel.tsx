@@ -56,6 +56,8 @@ function ReviewProgress({ decided, total, applied, onOpen }: { decided: number; 
 export function RunStatusPanel({ run, title, announcement, responding, responseError, onRespond }: Props) {
   const step = (id: StepId) => run?.steps[id] ?? IDLE;
   const [showDecisions, setShowDecisions] = useState(false);
+  // Resmi optimizasyon onayı bir bulgu kararı değil; sayaçta ve listede gösterilmez.
+  const decisions = (run?.resolutions ?? []).filter((r) => r.findingKey !== 'official');
 
   return (
     <section className="card" aria-labelledby="s4" style={{ flex: '2 1 380px' }}>
@@ -73,11 +75,11 @@ export function RunStatusPanel({ run, title, announcement, responding, responseE
               <div className="step-body">
                 <span className="step-name">{STEP_LABELS[id]}</span>
                 <span className="sub">{statusText(s)}</span>
-                {id === 'outlier_review' && run && (run.pendingApproval || run.resolutions.length > 0) && (
+                {id === 'outlier_review' && run && (run.pendingApproval || decisions.length > 0) && (
                   <ReviewProgress
-                    decided={run.resolutions.length}
-                    total={run.pendingApproval?.total ?? run.resolutions.length}
-                    applied={run.resolutions.filter((r) => r.outcome.kind === 'applied').length}
+                    decided={decisions.length}
+                    total={run.pendingApproval?.findingKey === 'official' ? decisions.length : run.pendingApproval?.total ?? decisions.length}
+                    applied={decisions.filter((r) => r.outcome.kind === 'applied').length}
                     onOpen={() => setShowDecisions(true)}
                   />
                 )}
@@ -112,9 +114,9 @@ export function RunStatusPanel({ run, title, announcement, responding, responseE
       {run?.status === 'completed' && run.summary && (
         <div className="ok-box">
           <span className="ok-title">{run.summary.headline}</span>
-          {run.resolutions.length > 0 && (
+          {decisions.length > 0 && (
             <span style={{ fontSize: 13 }}>
-              {correctionSentence(run.resolutions)}{' '}
+              {correctionSentence(decisions)}{' '}
               <button type="button" className="linkish" onClick={() => setShowDecisions(true)}>Kararları gör</button>
             </span>
           )}
@@ -129,7 +131,7 @@ export function RunStatusPanel({ run, title, announcement, responding, responseE
           <Link className="btn btn-p" to={paths.sonuclar}>Sonuçları aç</Link>
         </div>
       )}
-      <DecisionsDialog open={showDecisions} onClose={() => setShowDecisions(false)} resolutions={run?.resolutions ?? []} />
+      <DecisionsDialog open={showDecisions} onClose={() => setShowDecisions(false)} resolutions={decisions} />
       {run?.status === 'failed' && run.error && (
         <div className="err-box" role="alert">
           <strong>Optimizasyon tamamlanamadı.</strong>
