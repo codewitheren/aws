@@ -90,7 +90,7 @@ Son bulgu yanıtlanınca koşu kendiliğinden devam eder.
 | Arayüz adımı | Backend eylemi |
 |---|---|
 | Hesapla | `prepare` (merkez, tip `amb`/`cold`/`ms`, İstanbul'a göre bugün) → girdiler + aykırı PL bulguları |
-| Onay kartları | Tarayıcıda; kararlar `finish` çağrısına `changes` (satır → sipariş katına yuvarlanmış miktar) olarak gider |
+| Aykırı PL önerileri | Koşuda sorulmaz; `finish` Relex önerisiyle (`changes: {}`) çalışır, bulgular Relex anomalileri sayfasında listelenir |
 | Kesim motoru | `finish` → özet, dosyalar S3'te |
 | Sayfa yenileme | `status` ile bu sekmedeki son koşu geri yüklenir |
 | Sonuçlar, Trend, Depolar | `view` (depo tablosu, neden payları, öneri kontrol kartları, tam gönderim doluluğu) |

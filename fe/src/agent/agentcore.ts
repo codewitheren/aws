@@ -7,7 +7,7 @@ import { nf } from '../lib/format';
 import type { AgentClient } from './client';
 import { readEventStream } from './sse';
 import type {
-  ApprovalOutcome, ApprovalRequest, ApprovalResolution, ChatEvent, RunEvent, TransferTypeId,
+  ChatEvent, RunEvent, TransferTypeId,
 } from './types';
 
 // ---- Yapılandırma ve giriş ----
@@ -211,67 +211,15 @@ export function fetchDepot<T>(name: string): Promise<T> {
   return invoke<T>(run.session, { action: 'depot', name });
 }
 
-// ---- Onay kartları ----
-
-const snap = (value: number, batch: number) => Math.floor(value / batch + 1e-9) * batch;
-
-function approvalFor(f: Finding, index: number, total: number): ApprovalRequest {
-  const left = total - index;
-  return {
-    approvalId: 'row-' + f.row,
-    index, total,
-    findingKey: String(f.row),
-    depotId: f.depot,
-    title: `${f.depot} · ${f.product}`,
-    found: `Relex bu ürün için ${f.depot} deposuna ${nf(f.current)} adet öneriyor. Aynı ürünün diğer ${f.domain} depolardaki önerisi medyan ${nf(f.median)}, ortalama ${nf(f.mean, 1)}; aykırılık üst sınırı ${nf(f.limit, 1)}.`,
-    proposal: `Öneriyi medyana göre sipariş katına (${nf(f.batch)}) çekmek: ${nf(f.current)} → ${nf(f.proposed)} (−${nf(f.current - f.proposed)} adet).`,
-    howApplied: 'Yalnızca bu koşuda, kesim motorundan önce çalışma kopyasındaki Effective quantity alanına yazılır. Relex kaydı değişmez.',
-    impact: `${f.depot} önerisi ${nf(f.current - f.proposed)} adet azalır; kesim motoru kalan öneriyle çalışır.`,
-    question: `Medyana (${nf(f.proposed)}) çekeyim mi?`,
-    metric: 'oneri',
-    currentValue: f.current,
-    proposedValue: f.proposed,
-    reference: { group: f.domain, mean: f.mean, median: f.median },
-    options: [
-      { id: 'accept', label: `Evet, medyana çek (${nf(f.proposed)})` },
-      ...(left > 0 ? [{ id: 'accept_all_remaining' as const, label: `Evet, kalan ${nf(left)} bulguyu da sormadan medyana çek` }] : []),
-      { id: 'reject', label: `Hayır, olduğu gibi bırak (${nf(f.current)})` },
-      ...(left > 0 ? [{ id: 'reject_all_remaining' as const, label: `Hayır, kalan ${nf(left)} bulguyu da olduğu gibi bırak` }] : []),
-    ],
-    instruction: { allowed: true, placeholder: 'ör. ortalamaya çek, 20 ile sınırla' },
-  };
-}
-
-/** Serbest talimat: sayı → o sayıyla sınırla, "ortalama" / "medyan" → çek. Değer sipariş katına yuvarlanır. */
-function interpret(text: string, f: Finding): { outcome: ApprovalOutcome; summary: string; note?: string } {
-  const t = text.toLocaleLowerCase('tr-TR');
-  const m = t.match(/\d{1,3}(?:\.\d{3})+(?!\d)|\d+(?:,\d+)?/);
-  let value: number | null = null;
-  let method: 'instruction' | 'mean' | 'median' = 'instruction';
-  if (m) value = snap(Number(m[0].replace(/\./g, '').replace(',', '.')), f.batch);
-  else if (t.includes('ortalama')) { value = Math.max(f.batch, snap(f.mean, f.batch)); method = 'mean'; }
-  else if (t.includes('medyan')) { value = f.proposed; method = 'median'; }
-  if (value === null) {
-    return { outcome: { kind: 'unchanged', reason: 'instruction_note' }, summary: `Olduğu gibi bırakıldı (${nf(f.current)}) · not alındı`, note: text };
-  }
-  if (!(value >= 0 && value < f.current)) {
-    return { outcome: { kind: 'unchanged', reason: 'instruction_not_lower' }, summary: `Değiştirilmedi: ${nf(value)}, mevcut önerinin (${nf(f.current)}) altında değil`, note: text };
-  }
-  const how = method === 'mean' ? 'Ortalamaya çekildi' : method === 'median' ? 'Medyana çekildi' : 'Talimatla sınırlandı';
-  return { outcome: { kind: 'applied', value, method }, summary: `${how} (${nf(f.current)} → ${nf(value)})`, note: method === 'instruction' ? text : undefined };
-}
-
 // ---- İstemci ----
 
 interface Active {
   run: LiveRun;
-  decided: Map<number, ApprovalResolution>;
   emit: (e: RunEvent) => void;
   signal: AbortSignal;
 }
 
 export function createAgentCoreClient(): AgentClient {
-  let active: Active | null = null;
 
   const fail = (a: Active, err: unknown) => {
     if (a.signal.aborted) return;
@@ -282,12 +230,6 @@ export function createAgentCoreClient(): AgentClient {
     type: 'run_started',
     run: { runId: a.run.session, merkez: a.run.merkez, transferType: a.run.transferType, transferTypeLabel: TYPE_LABEL[a.run.transferType], runDate: a.run.runDate },
   });
-
-  const askNext = (a: Active) => {
-    const i = a.run.findings.findIndex((f) => !a.decided.has(f.row));
-    if (i === -1) return void finish(a);
-    a.emit({ type: 'approval_requested', runId: a.run.session, approval: approvalFor(a.run.findings[i], i + 1, a.run.findings.length) });
-  };
 
   const completed = (a: Active, s: BackendSummary) => {
     const id = a.run.session;
@@ -315,19 +257,12 @@ export function createAgentCoreClient(): AgentClient {
     });
   };
 
+  /** Aykırı öneriler koşuda sorulmaz (Relex anomalileri sayfasında listelenir); motor Relex önerisiyle çalışır. */
   const finish = async (a: Active) => {
     const id = a.run.session;
-    const applied = [...a.decided.values()].filter((r) => r.outcome.kind === 'applied').length;
-    if (a.run.findings.length) {
-      a.emit({ type: 'step_completed', runId: id, step: 'outlier_review', detail: `${applied} düzeltme, ${a.decided.size - applied} öneri olduğu gibi` });
-    }
     a.emit({ type: 'step_started', runId: id, step: 'cutting_engine' });
     a.emit({ type: 'step_progress', runId: id, step: 'cutting_engine', detail: 'Motor çalışıyor; büyük merkezlerde birkaç dakika sürebilir' });
     const changes: Record<string, number> = {};
-    for (const f of a.run.findings) {
-      const r = a.decided.get(f.row);
-      if (r?.outcome.kind === 'applied') changes[String(f.row)] = r.outcome.value;
-    }
     try {
       const state = await invoke<BackendState>(id, { action: 'finish', changes }, a.signal);
       if (state.stage !== 'ready' || !state.summary) throw new Error('Motor sonucu alınamadı.');
@@ -342,8 +277,7 @@ export function createAgentCoreClient(): AgentClient {
 
   const begin = (run: LiveRun, onEvent: (e: RunEvent) => void) => {
     const controller = new AbortController();
-    const a: Active = { run, decided: new Map(), emit: (e) => !controller.signal.aborted && onEvent(e), signal: controller.signal };
-    active = a;
+    const a: Active = { run, emit: (e) => !controller.signal.aborted && onEvent(e), signal: controller.signal };
     return { a, handle: { abort: () => controller.abort() } };
   };
 
@@ -365,14 +299,10 @@ export function createAgentCoreClient(): AgentClient {
         .then((state) => {
           run.findings = state.findings ?? [];
           a.emit({ type: 'step_completed', runId: run.session, step: 'relex_read',
-            detail: `${nf(state.rows ?? 0)} öneri satırı okundu` + (state.unknownDomain ? ` · ${nf(state.unknownDomain)} satırda depo tipi eksik` : '') });
-          a.emit({ type: 'step_started', runId: run.session, step: 'outlier_review' });
-          if (!run.findings.length) {
-            a.emit({ type: 'step_completed', runId: run.session, step: 'outlier_review', detail: 'Aykırı öneri bulunmadı' });
-          } else {
-            a.emit({ type: 'step_progress', runId: run.session, step: 'outlier_review', detail: `${nf(run.findings.length)} aykırı öneri buldum. Onayınız bekleniyor` });
-          }
-          askNext(a);
+            detail: `${nf(state.rows ?? 0)} öneri satırı okundu`
+              + (run.findings.length ? ` · ${nf(run.findings.length)} aykırı öneri Relex anomalilerinde` : '')
+              + (state.unknownDomain ? ` · ${nf(state.unknownDomain)} satırda depo tipi eksik` : '') });
+          void finish(a);
         })
         .catch((err) => fail(a, err));
       return handle;
@@ -394,12 +324,10 @@ export function createAgentCoreClient(): AgentClient {
           started(a);
           run.findings = state.findings ?? [];
           a.emit({ type: 'step_completed', runId: run.session, step: 'relex_read', detail: `${nf(state.rows ?? 0)} öneri satırı okundu` });
-          a.emit({ type: 'step_started', runId: run.session, step: 'outlier_review' });
-          if (state.stage === 'review') return askNext(a);
+          if (state.stage === 'review') return finish(a);
           run.summary = state.summary!;
           run.changes = state.changes ?? {};
           current = run;
-          a.emit({ type: 'step_completed', runId: run.session, step: 'outlier_review', detail: `${nf(Object.keys(run.changes).length)} düzeltme uygulandı` });
           completed(a, run.summary);
         })
         .catch((err) => fail(a, err))
@@ -407,34 +335,8 @@ export function createAgentCoreClient(): AgentClient {
       return handle;
     },
 
-    async respondToApproval(command) {
-      const a = active;
-      if (!a || a.run.session !== command.runId) throw new Error('Bu onay süren koşuya ait değil.');
-      const pending = a.run.findings.filter((f) => !a.decided.has(f.row));
-      const f = pending[0];
-      if (!f || 'row-' + f.row !== command.approvalId) throw new Error('Bu öneri zaten yanıtlandı.');
-      const r = command.response;
-      const resolve = (x: Finding, outcome: ApprovalOutcome, summary: string, decidedBy: 'user' | 'bulk', note?: string) => {
-        const resolution: ApprovalResolution = {
-          approvalId: 'row-' + x.row, findingKey: String(x.row), title: `${x.depot} · ${x.product}`,
-          originalValue: x.current, outcome, summary, decidedBy, note,
-        };
-        a.decided.set(x.row, resolution);
-        a.emit({ type: 'approval_resolved', runId: a.run.session, resolution });
-      };
-      const accept = (x: Finding, by: 'user' | 'bulk') =>
-        resolve(x, { kind: 'applied', value: x.proposed, method: 'median' }, `Medyana çekildi (${nf(x.current)} → ${nf(x.proposed)})`, by);
-      const keep = (x: Finding, by: 'user' | 'bulk') =>
-        resolve(x, { kind: 'unchanged', reason: 'rejected' }, `Olduğu gibi bırakıldı (${nf(x.current)})`, by);
-      if (r.kind === 'accept') accept(f, 'user');
-      else if (r.kind === 'reject') keep(f, 'user');
-      else if (r.kind === 'accept_all_remaining') pending.forEach((x, i) => accept(x, i ? 'bulk' : 'user'));
-      else if (r.kind === 'reject_all_remaining') pending.forEach((x, i) => keep(x, i ? 'bulk' : 'user'));
-      else {
-        const t = interpret(r.text, f);
-        resolve(f, t.outcome, t.summary, 'user', t.note);
-      }
-      askNext(a);
+    async respondToApproval() {
+      throw new Error('Koşu sırasında onay istenmez; aykırı öneriler Relex anomalileri sayfasında.');
     },
 
     ask(command, onEvent: (e: ChatEvent) => void) {

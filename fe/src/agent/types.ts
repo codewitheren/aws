@@ -5,8 +5,8 @@
 
 export type TransferTypeId = 'amb' | 'c4' | 'ms';
 
-export type StepId = 'relex_read' | 'outlier_review' | 'cutting_engine' | 'agent_checks' | 'ready';
-export const STEP_ORDER: readonly StepId[] = ['relex_read', 'outlier_review', 'cutting_engine', 'agent_checks', 'ready'];
+export type StepId = 'relex_read' | 'cutting_engine' | 'agent_checks' | 'ready';
+export const STEP_ORDER: readonly StepId[] = ['relex_read', 'cutting_engine', 'agent_checks', 'ready'];
 
 export type CheckId = 'run_integrity' | 'faulty_output' | 'relex_anomalies' | 'depot_cuts';
 export const CHECK_ORDER: readonly CheckId[] = ['run_integrity', 'faulty_output', 'relex_anomalies', 'depot_cuts'];

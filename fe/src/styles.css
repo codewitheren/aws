@@ -138,13 +138,6 @@ table.t{width:100%;border-collapse:collapse;font-size:13px}
 .check{display:flex;gap:10px;align-items:center;font-size:13px}
 .check.pending{color:var(--muted)}
 .check span:nth-child(2){flex:1}
-.approval{margin-top:10px;border:1px solid var(--brand);border-radius:10px;background:var(--surface);padding:14px;display:flex;flex-direction:column;gap:12px}
-.approval .lbl.brand{color:var(--brand);font-weight:600}
-.approval-title{font-size:15px;font-weight:600}
-.approval-title:focus{outline:none}
-.approval .btn{justify-content:flex-start;text-align:left;padding:8px 18px}
-.instruction{display:flex;gap:8px;flex-wrap:wrap}
-.instruction .input{flex:1 1 180px}
 
 /* Sonuçlar */
 .alerts{display:flex;flex-direction:column}
@@ -203,22 +196,9 @@ table.t{width:100%;border-collapse:collapse;font-size:13px}
 .tw,.chart-box,.card,.heat-row{position:relative}
 .tk [tabindex="-1"]:focus{outline:none}
 
-/* Karar ilerlemesi ve kararlar dialogu */
-.review-progress{margin-top:10px;display:flex;flex-direction:column;gap:8px;padding:10px 12px;border-radius:10px;background:var(--surface2)}
-.linkish{background:none;border:0;padding:0;font:inherit;color:var(--brand);font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
-.dlg{width:min(640px,calc(100vw - 32px));max-height:min(80vh,720px);padding:0;border:1px solid var(--line);border-radius:14px;background:var(--surface);color:var(--text);box-shadow:0 24px 64px rgba(0,0,0,.22);display:none;flex-direction:column;overflow:hidden}
-.dlg[open]{display:flex;animation:dlg-in .18s ease-out}
-.dlg::backdrop{background:rgba(17,17,21,.45);backdrop-filter:blur(2px)}
-@keyframes dlg-in{from{opacity:0;transform:translateY(8px) scale(.98)}to{opacity:1;transform:none}}
-@media (prefers-reduced-motion:reduce){.dlg[open]{animation:none}}
-.dlg-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;padding:18px 20px 12px}
-.dlg-head h2{margin:0}
 .seg{display:flex;gap:4px;margin:0 20px 12px;padding:3px;border-radius:9px;background:var(--surface2);align-self:flex-start;flex-wrap:wrap}
 .seg button{border:0;background:none;font:inherit;font-size:13px;color:var(--muted);padding:5px 12px;border-radius:7px;cursor:pointer}
 .seg button.on{background:var(--surface);color:var(--text);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08)}
-.dlg-list{list-style:none;margin:0;padding:0 20px 20px;overflow-y:auto;display:flex;flex-direction:column}
-.dlg-list li{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
-.ellipsis{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* Uyarı sekmeleri ve sayfalama */
 .seg-flush{margin:0}
 .seg button{display:inline-flex;align-items:center;gap:6px}

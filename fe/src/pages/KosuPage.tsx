@@ -36,8 +36,7 @@ function KosuForm({ merkezler }: { merkezler: MerkezOption[] }) {
     actions.select({ merkez: m.ad, transferType: first.id });
   };
 
-  const buttonText = run?.status === 'awaiting_approval' ? 'Onay bekleniyor'
-    : active ? 'Hesaplanıyor…'
+  const buttonText = active ? 'Hesaplanıyor…'
     : sameAsRun && run?.status === 'completed' ? 'Yeniden hesapla'
     : sameAsRun && run?.status === 'failed' ? 'Yeniden dene'
     : 'Hesapla';
@@ -106,7 +105,7 @@ function KosuForm({ merkezler }: { merkezler: MerkezOption[] }) {
           {run && !active && !sameAsRun && (
             <p className="sub" role="note">Son koşu {runLabel} içindi. Yeni seçiminiz için Hesapla'ya basın.</p>
           )}
-          <p className="sub">Koşu yalnızca bugünün Relex önerisiyle çalışır. Agent aykırı bir PL bulursa ne bulduğunu ve ne önerdiğini anlatır, onayınızı ister; onayladıklarınız yalnızca bu koşunun çıktısına uygulanır. Relex'e ya da başka bir sisteme yazmaz.</p>
+          <p className="sub">Koşu yalnızca bugünün Relex önerisiyle çalışır. Agent'ın bulduğu aykırı öneriler kesimi değiştirmez; Sonuçlar → Relex anomalileri sayfasında listelenir. Agent Relex'e ya da başka bir sisteme yazmaz.</p>
         </section>
       </div>
 
@@ -114,9 +113,6 @@ function KosuForm({ merkezler }: { merkezler: MerkezOption[] }) {
         run={run}
         title={`${runLabel} · ${runDate}`}
         announcement={state.announcement}
-        responding={state.responding}
-        responseError={state.responseError}
-        onRespond={(r) => void actions.respond(r)}
       />
     </div>
   );
