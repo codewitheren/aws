@@ -239,3 +239,5 @@ table.t{width:100%;border-collapse:collapse;font-size:13px}
 .md-code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;background:var(--surface);padding:1px 5px;border-radius:4px}
 .md-table{background:var(--surface);border-radius:8px;max-width:100%}
 .md-table .t th,.md-table .t td{padding:6px 8px}
+
+.info-box{display:flex;flex-direction:column;gap:6px;padding:14px;border-radius:8px;background:var(--bilgi-bg);color:var(--bilgi)}

@@ -132,7 +132,13 @@ export function RunStatusPanel({ run, title, announcement, responding, responseE
         </div>
       )}
       <DecisionsDialog open={showDecisions} onClose={() => setShowDecisions(false)} resolutions={decisions} />
-      {run?.status === 'failed' && run.error && (
+      {run?.status === 'failed' && run.error?.code === 'no_data' && (
+        <div className="info-box" role="status">
+          <strong>Depo verisi bulunamadı</strong>
+          <span>{run.error.message}</span>
+        </div>
+      )}
+      {run?.status === 'failed' && run.error && run.error.code !== 'no_data' && (
         <div className="err-box" role="alert">
           <strong>Optimizasyon tamamlanamadı.</strong>
           <span>{run.error.message}</span>

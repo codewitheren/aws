@@ -420,6 +420,15 @@ export function createAgentCoreClient(): AgentClient {
     a.offset = state.offset ?? 0;
     a.remaining = state.remaining ?? 0;
     const errors = checks.filter((c) => c.level === 'hata');
+    // Girdide seçilen merkezin depoları yoksa bu bir hata değil, "veri yok" durumudur.
+    const other = errors.length === 1 && /merkezi uyuşmuyor/i.test(errors[0].title)
+      ? errors[0].evidence.match(/tespit edilen merkez ([^.]+)\./)?.[1] : undefined;
+    if (other !== undefined) {
+      a.emit({ type: 'step_completed', runId: id, step: 'relex_read', detail: `${a.run.merkez} için depo verisi yok` });
+      a.emit({ type: 'run_failed', runId: id, error: { code: 'no_data',
+        message: `${a.run.merkez} için depo verisi bulunamadı. Forecast girdisinde ${other === 'belirsiz' ? 'tanınan bir merkez yok' : `yalnız ${other} depoları var`}; o merkezi seçerek optimizasyonu başlatabilirsiniz.` } });
+      return;
+    }
     if (state.stage === 'blocked' || errors.length) {
       const why = state.legacy ? 'Bu inceleme eski sürümle başlatılmış; yeni optimizasyon başlatın.'
         : errors.map((c) => `${forecastName(c.title)}: ${forecastName(c.evidence)}`).join(' · ');

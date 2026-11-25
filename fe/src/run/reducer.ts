@@ -146,7 +146,7 @@ function applyRunEvent(run: RunState, event: RunEvent): { run: RunState; announc
     case 'run_failed':
       return {
         run: { ...run, status: 'failed', pendingApproval: null, error: event.error },
-        announcement: 'Optimizasyon tamamlanamadı: ' + event.error.message,
+        announcement: (event.error.code === 'no_data' ? '' : 'Optimizasyon tamamlanamadı: ') + event.error.message,
       };
   }
 }
