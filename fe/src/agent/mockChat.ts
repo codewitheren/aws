@@ -16,7 +16,7 @@ function goztepe(resolutions: readonly ApprovalResolution[]): CannedAnswer {
   const r = resolutions.find((x) => x.findingKey === GOZTEPE_KEY);
   const delta = r && r.outcome.kind === 'applied' ? r.originalValue - r.outcome.value : 0;
   const proposal = delta > 0
-    ? `Forecast önerisi 25.605 adet, yani 41,8 palet; onayladığınız düzeltmeyle bu koşuda ${nf(25605 - delta)} adet.`
+    ? `Forecast önerisi 25.605 adet, yani 41,8 palet; onayladığınız düzeltmeyle bu optimizasyonda ${nf(25605 - delta)} adet.`
     : 'Öneri 25.605 adet, yani 41,8 palet.';
   return {
     text:
@@ -37,15 +37,15 @@ const KAVACIK: CannedAnswer = {
 
 const KRITIK: CannedAnswer = {
   text:
-    '**4 koşu dosyası günün All PL kaydında yok.**\n\n' +
-    "+4 Maltepe, +4 Arnavutköy, MS Maltepe ve MS Adana için koşu dosyası var ama All PL'de kayıt yok: 4 dosya, 0 kayıt.\n\n" +
+    '**4 optimizasyon dosyası günün All PL kaydında yok.**\n\n' +
+    "+4 Maltepe, +4 Arnavutköy, MS Maltepe ve MS Adana için optimizasyon dosyası var ama All PL'de kayıt yok: 4 dosya, 0 kayıt.\n\n" +
     'Sevkiyattan önce All PL kaydını tamamlayın. Ben hiçbir sisteme yazmam; kaydı sizin oluşturmanız gerekiyor.',
-  links: [{ label: 'Koşu ekranını aç', route: '/kosu' }],
+  links: [{ label: 'Optimizasyon ekranını aç', route: '/kosu' }],
 };
 
 const FALLBACK: CannedAnswer = {
   text:
-    'Bu soruya örnek (mock) modda hazır bir yanıtım yok. Gerçek agent bağlandığında bu koşunun verisi üzerinden yanıt verecek.\n\n' +
+    'Bu soruya örnek (mock) modda hazır bir yanıtım yok. Gerçek agent bağlandığında bu optimizasyonun verisi üzerinden yanıt verecek.\n\n' +
     'Şimdilik Göztepe, Kavacık ya da kritik uyarı hakkında sorabilirsiniz.',
   links: [],
 };

@@ -1,5 +1,5 @@
 /**
- * Veri erişim katmanı. Mock modda örnek modülden, AgentCore modunda son tamamlanan koşudan okur (data/live.ts).
+ * Veri erişim katmanı. Mock modda örnek modülden, AgentCore modunda son tamamlanan optimizasyondan okur (data/live.ts).
  */
 import { config } from '../config';
 import * as live from './live';

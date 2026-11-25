@@ -44,14 +44,14 @@ async def invoke(payload, context):
         if session != context.session_id or not isinstance(payload, dict):
             raise ValueError()
     except (ValueError, TypeError, AttributeError, jwt.PyJWTError):
-        yield {"error": "Geçerli bir kullanıcı ve koşu oturumu gerekli."}
+        yield {"error": "Geçerli bir kullanıcı ve optimizasyon oturumu gerekli."}
         return
     action = payload.get("action")
     if isinstance(action, str) and action in {"prepare", "finish", "status", "download", "explain", "view", "depot"}:
         key = (actor, session)
         writing = action in {"prepare", "finish"}
         if writing and key in active_runs:
-            yield {"error": "Bu koşunun işlemi sürüyor. Durumunu biraz sonra yeniden kontrol edin."}
+            yield {"error": "Bu optimizasyonun işlemi sürüyor. Durumunu biraz sonra yeniden kontrol edin."}
             return
         if writing:
             active_runs.add(key)
@@ -73,9 +73,9 @@ async def invoke(payload, context):
             yield {"error": str(exc)}
         except Exception as exc:
             logger.error("transfer action=%s error=%s", action, type(exc).__name__)
-            yield {"error": "Koşu işlemi tamamlanamadı. Tekrar deneyebilirsiniz."}
+            yield {"error": "Optimizasyon işlemi tamamlanamadı. Tekrar deneyebilirsiniz."}
         return
-    yield {"error": "Bilinmeyen koşu işlemi."}
+    yield {"error": "Bilinmeyen optimizasyon işlemi."}
 
 
 if __name__ == "__main__":

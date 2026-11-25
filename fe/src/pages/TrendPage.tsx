@@ -68,8 +68,8 @@ function Trend({ data }: { data: TrendData }) {
 
       {data.history ? <History h={data.history} /> : (
         <section className="card" aria-labelledby="t0">
-          <h2 id="t0">Geçmiş koşular</h2>
-          <p className="measure">Bu sürümde geçmiş koşu arşivi yok; 30 günlük trend, gün bazında nedenler ve depo × gün ısı haritası arşiv bağlanınca görünür. Aşağıdakiler bugünkü koşunun rakamlarıdır.</p>
+          <h2 id="t0">Geçmiş optimizasyonlar</h2>
+          <p className="measure">Bu sürümde geçmiş optimizasyon arşivi yok; 30 günlük trend, gün bazında nedenler ve depo × gün ısı haritası arşiv bağlanınca görünür. Aşağıdakiler bugünkü optimizasyonun rakamlarıdır.</p>
         </section>
       )}
 

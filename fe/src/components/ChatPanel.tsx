@@ -20,7 +20,7 @@ export function ChatPanel({ suggestions }: { suggestions: string[] }) {
     <aside className="card" aria-labelledby="c1" style={{ flex: '1 1 320px' }}>
       <div className="stack-s">
         <h2 id="c1">Agent'a sor</h2>
-        <span className="sub">Bu koşunun verisi üzerinden yanıtlar.</span>
+        <span className="sub">Bu optimizasyonun verisi üzerinden yanıtlar.</span>
       </div>
       {state.chat.length === 0 && (
         <p className="sub">Bir depo ya da uyarı hakkında sorun. Aşağıdaki sorulardan biriyle başlayabilirsiniz.</p>

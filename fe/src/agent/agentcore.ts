@@ -1,7 +1,7 @@
 /**
  * AgentCore Runtime istemcisi. Backend'in beş eylemiyle konuşur (agent/main.py):
  * prepare → (kullanıcı kararları tarayıcıda) → finish, status, download, explain, view, depot.
- * Koşu kimliği Runtime oturum UUID'sidir; her yeni koşu yeni bir oturum açar.
+ * Optimizasyon kimliği Runtime oturum UUID'sidir; her yeni optimizasyon yeni bir oturum açar.
  */
 import { forecastName, nf } from '../lib/format';
 import type { AgentClient } from './client';
@@ -179,10 +179,10 @@ const KIND: Record<TransferTypeId, 'amb' | 'cold' | 'ms'> = { amb: 'amb', c4: 'c
 const TYPE_OF: Record<string, TransferTypeId> = { amb: 'amb', cold: 'c4', ms: 'ms' };
 export const TYPE_LABEL: Record<TransferTypeId, string> = { amb: 'Ambient & Su', c4: '+4 (Soğuk)', ms: 'Meyve-Sebze' };
 
-/** Tamamlanmış son koşu; ekran verisi (data/live.ts) buradan okunur. */
+/** Tamamlanmış son optimizasyon; ekran verisi (data/live.ts) buradan okunur. */
 let current: LiveRun | null = null;
 export const liveRun = () => (current?.summary ? current : null);
-/** Sayfa yenilendikten sonra son koşu geri yüklenene kadar bekler (sayfalar RunProvider'dan önce veri ister). */
+/** Sayfa yenilendikten sonra son optimizasyon geri yüklenene kadar bekler (sayfalar RunProvider'dan önce veri ister). */
 let doneRestoring = () => {};
 const restoring = readStore(RUN_KEY) ? new Promise<void>((r) => { doneRestoring = r; }) : Promise.resolve();
 export const restored = () => restoring;
@@ -191,23 +191,23 @@ function todayIstanbul(): string {
   return new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Istanbul' }).format(new Date());
 }
 
-/** Bu koşunun bir dosyasını indirir (5 dakikalık imzalı bağlantı). */
+/** Bu optimizasyonun bir dosyasını indirir (5 dakikalık imzalı bağlantı). */
 export async function downloadRunFile(name: 'transfer.xlsx' | 'uyarilar.csv' | 'anomaliler.csv'): Promise<void> {
   const run = liveRun();
-  if (!run) throw new Error('Önce bir koşu tamamlanmalı.');
+  if (!run) throw new Error('Önce bir optimizasyon tamamlanmalı.');
   const { url } = await invoke<{ url: string }>(run.session, { action: 'download', name });
   window.location.assign(url);
 }
 
 export function fetchView<T>(): Promise<T> {
   const run = liveRun();
-  if (!run) return Promise.reject(new Error('Henüz tamamlanmış bir koşu yok. Koşu ekranından Hesapla\'ya basın.'));
+  if (!run) return Promise.reject(new Error('Henüz tamamlanmış bir optimizasyon yok. Optimizasyon ekranından Hesapla\'ya basın.'));
   return invoke<T>(run.session, { action: 'view' });
 }
 
 export function fetchDepot<T>(name: string): Promise<T> {
   const run = liveRun();
-  if (!run) return Promise.reject(new Error('Henüz tamamlanmış bir koşu yok.'));
+  if (!run) return Promise.reject(new Error('Henüz tamamlanmış bir optimizasyon yok.'));
   return invoke<T>(run.session, { action: 'depot', name });
 }
 
@@ -225,7 +225,7 @@ function approvalFor(f: Finding, index: number, total: number): ApprovalRequest 
     title: `${f.depot} · ${f.product}`,
     found: `Forecast bu ürün için ${f.depot} deposuna ${nf(f.current)} adet öneriyor. Aynı ürünün diğer ${f.domain} depolardaki önerisi medyan ${nf(f.median)}, ortalama ${nf(f.mean, 1)}; aykırılık üst sınırı ${nf(f.limit, 1)}.`,
     proposal: `Öneriyi medyana göre sipariş katına (${nf(f.batch)}) çekmek: ${nf(f.current)} → ${nf(f.proposed)} (−${nf(f.current - f.proposed)} adet).`,
-    howApplied: 'Yalnızca bu koşuda, kesim motorundan önce çalışma kopyasındaki Effective quantity alanına yazılır. Forecast kaydı değişmez.',
+    howApplied: 'Yalnızca bu optimizasyonda, kesim motorundan önce çalışma kopyasındaki Effective quantity alanına yazılır. Forecast kaydı değişmez.',
     impact: `${f.depot} önerisi ${nf(f.current - f.proposed)} adet azalır; kesim motoru kalan öneriyle çalışır.`,
     question: `Medyana (${nf(f.proposed)}) çekeyim mi?`,
     metric: 'oneri',
@@ -305,7 +305,7 @@ export function createAgentCoreClient(): AgentClient {
     a.emit({
       type: 'run_completed', runId: id,
       summary: {
-        headline: `${s.center} ${TYPE_LABEL[a.run.transferType]} koşusu hazır: ${nf(s.suggested)} öneri satırı, ${nf(s.sent)} satır gönderiliyor`
+        headline: `${s.center} ${TYPE_LABEL[a.run.transferType]} optimizasyonu hazır: ${nf(s.suggested)} öneri satırı, ${nf(s.sent)} satır gönderiliyor`
           + (cutPct !== undefined ? `, kısma oranı %${nf(cutPct, 1)}.` : '.') + ` ${count('hata')} kritik, ${count('uyari')} uyarı var.`,
         counts: { kritik: count('hata'), uyari: count('uyari'), bilgi: count('bilgi') },
         corrections: { applied, unchanged: s.reviewed - applied },
@@ -355,7 +355,7 @@ export function createAgentCoreClient(): AgentClient {
         session: crypto.randomUUID(), merkez: command.merkez, transferType: command.transferType,
         runDate: todayIstanbul(), findings: [], summary: null, changes: {},
       };
-      doneRestoring(); // yeni koşu, yarım kalan geri yüklemenin yerini alır
+      doneRestoring(); // yeni optimizasyon, yarım kalan geri yüklemenin yerini alır
       writeStore(RUN_KEY, { session: run.session, merkez: run.merkez, transferType: run.transferType, runDate: run.runDate });
       const { a, handle } = begin(run, onEvent);
       started(a);
@@ -378,7 +378,7 @@ export function createAgentCoreClient(): AgentClient {
       return handle;
     },
 
-    /** Sayfa yenilenince bu sekmedeki son koşuyu backend'den geri yükler. */
+    /** Sayfa yenilenince bu sekmedeki son optimizasyonu backend'den geri yükler. */
     resume(onEvent) {
       const saved = readStore<Omit<LiveRun, 'findings' | 'summary' | 'changes'>>(RUN_KEY);
       if (!saved || !tokens) {
@@ -409,7 +409,7 @@ export function createAgentCoreClient(): AgentClient {
 
     async respondToApproval(command) {
       const a = active;
-      if (!a || a.run.session !== command.runId) throw new Error('Bu onay süren koşuya ait değil.');
+      if (!a || a.run.session !== command.runId) throw new Error('Bu onay süren optimizasyona ait değil.');
       const pending = a.run.findings.filter((f) => !a.decided.has(f.row));
       const f = pending[0];
       if (!f || 'row-' + f.row !== command.approvalId) throw new Error('Bu öneri zaten yanıtlandı.');
@@ -443,7 +443,7 @@ export function createAgentCoreClient(): AgentClient {
       const run = liveRun();
       const emit = (e: ChatEvent) => !controller.signal.aborted && onEvent(e);
       if (!run || (command.runId && command.runId !== run.session)) {
-        emit({ type: 'chat_failed', messageId: null, error: { code: 'no_run', message: 'Önce bir koşuyu tamamlayın; agent o koşunun verisiyle yanıtlar.' } });
+        emit({ type: 'chat_failed', messageId: null, error: { code: 'no_run', message: 'Önce bir optimizasyonu tamamlayın; agent o optimizasyonun verisiyle yanıtlar.' } });
         return { abort: () => controller.abort() };
       }
       emit({ type: 'chat_message_started', messageId: id });

@@ -1,6 +1,6 @@
 import type { AskCommand, ChatEvent, RespondToApprovalCommand, RunEvent, StartRunCommand } from './types';
 
-/** Süren bir akışı (koşu ya da sohbet yanıtı) durdurur; sonrasında olay gelmez. */
+/** Süren bir akışı (optimizasyon ya da sohbet yanıtı) durdurur; sonrasında olay gelmez. */
 export interface StreamHandle {
   abort(): void;
 }
@@ -11,12 +11,12 @@ export interface StreamHandle {
  */
 export interface AgentClient {
   readonly mode: 'mock' | 'agentcore';
-  /** Koşuyu başlatır; olaylar `onEvent` ile akar. İlk olay `run_started`'dır. */
+  /** Optimizasyonu başlatır; olaylar `onEvent` ile akar. İlk olay `run_started`'dır. */
   startRun(command: StartRunCommand, onEvent: (event: RunEvent) => void): StreamHandle;
-  /** Bekleyen onaya yanıt verir. Sonuç, koşu akışında `approval_resolved` olarak gelir. */
+  /** Bekleyen onaya yanıt verir. Sonuç, optimizasyon akışında `approval_resolved` olarak gelir. */
   respondToApproval(command: RespondToApprovalCommand): Promise<void>;
   /** "Agent'a sor": yanıt parça parça `chat_delta` olarak akar. */
   ask(command: AskCommand, onEvent: (event: ChatEvent) => void): StreamHandle;
-  /** Varsa: bu sekmedeki son koşuyu geri yükler; olaylar `run_started` ile başlar. */
+  /** Varsa: bu sekmedeki son optimizasyonu geri yükler; olaylar `run_started` ile başlar. */
   resume?(onEvent: (event: RunEvent) => void): StreamHandle | null;
 }

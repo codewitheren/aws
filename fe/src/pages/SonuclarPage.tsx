@@ -22,33 +22,33 @@ export function SonuclarPage() {
   );
 }
 
-/** Bu oturumdaki koşunun, gösterilen örnek sonuçla ilişkisini açıkça söyler. */
+/** Bu oturumdaki optimizasyonun, gösterilen örnek sonuçla ilişkisini açıkça söyler. */
 function RunNote({ run, data }: { run: RunState | null; data: ResultsData }) {
   const ctx = data.context;
   if (!run) {
-    return <p style={{ fontSize: 13 }}>Örnek sonuç gösteriliyor; bu oturumda henüz koşu yapılmadı.</p>;
+    return <p style={{ fontSize: 13 }}>Örnek sonuç gösteriliyor; bu oturumda henüz optimizasyon yapılmadı.</p>;
   }
   if (isActive(run)) {
-    return <p style={{ fontSize: 13 }}>Süren bir koşu var. <Link to={paths.kosu}>Koşu durumunu açın</Link>.</p>;
+    return <p style={{ fontSize: 13 }}>Süren bir optimizasyon var. <Link to={paths.kosu}>Optimizasyon durumunu açın</Link>.</p>;
   }
   if (!runMatches(run, ctx.merkez, ctx.transferType)) {
     return (
       <p style={{ fontSize: 13 }}>
-        Son koşunuz {run.request.merkez} için yapıldı; bu ekrandaki rakamlar {ctx.merkez} · {ctx.transferTypeLabel} örnek koşusuna aittir.
+        Son optimizasyonunuz {run.request.merkez} için yapıldı; bu ekrandaki rakamlar {ctx.merkez} · {ctx.transferTypeLabel} örnek optimizasyonuna aittir.
       </p>
     );
   }
   if (run.status === 'completed') {
     return (
       <p style={{ fontSize: 13 }}>
-        Bu koşuda {run.resolutions.length > 0 ? correctionSentence(run.resolutions)
+        Bu optimizasyonda {run.resolutions.length > 0 ? correctionSentence(run.resolutions)
           : run.summary && run.summary.corrections.applied + run.summary.corrections.unchanged > 0
             ? `${run.summary.corrections.applied} düzeltme uygulandı, ${run.summary.corrections.unchanged} öneri olduğu gibi bırakıldı.`
-            : 'agent düzeltme önermedi.'} Düzeltmeler yalnızca bu koşunun çıktısına uygulandı; Forecast'ta kayıt değişmedi.
+            : 'agent düzeltme önermedi.'} Düzeltmeler yalnızca bu optimizasyonun çıktısına uygulandı; Forecast'ta kayıt değişmedi.
       </p>
     );
   }
-  return <p style={{ fontSize: 13 }}>Son koşu tamamlanamadı. <Link to={paths.kosu}>Koşu ekranına dönün</Link>.</p>;
+  return <p style={{ fontSize: 13 }}>Son optimizasyon tamamlanamadı. <Link to={paths.kosu}>Optimizasyon ekranına dönün</Link>.</p>;
 }
 
 function Summary({ data, anomalies }: { data: ResultsData; anomalies: AnomalyData }) {
@@ -62,7 +62,7 @@ function Summary({ data, anomalies }: { data: ResultsData; anomalies: AnomalyDat
   return (
     <>
       <ResultsHeader context={data.context} active="ozet" anomalyTotal={data.anomalyTotal}
-        action={<Link className="btn" to={paths.kosu}>Yeni koşu</Link>} />
+        action={<Link className="btn" to={paths.kosu}>Yeni optimizasyon</Link>} />
 
       <section aria-label="Agent sonucu" className="hero">
         <span className="lbl">Agent sonucu</span>

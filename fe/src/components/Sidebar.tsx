@@ -3,7 +3,7 @@ import type { Theme } from '../theme/theme';
 import { logout } from './LoginGate';
 
 const NAV: { key: string; label: string; to: string; match: Route['name'][] }[] = [
-  { key: 'kosu', label: 'Koşu', to: paths.kosu, match: ['kosu'] },
+  { key: 'kosu', label: 'Optimizasyon', to: paths.kosu, match: ['kosu'] },
   { key: 'sonuclar', label: 'Sonuçlar', to: paths.sonuclar, match: ['sonuclar', 'anomaliler'] },
   { key: 'trend', label: 'Trend', to: paths.trend, match: ['trend'] },
   { key: 'depolar', label: 'Depolar', to: paths.depolar, match: ['depolar', 'depo'] },

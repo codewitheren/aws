@@ -70,7 +70,7 @@ def visible(state):
 def changes_for(findings, values):
     options = {str(f["row"]):f for f in findings}
     if not isinstance(values, dict) or values.keys() - options.keys():
-        raise ValueError("Karar listesi bu koşuya ait değil.")
+        raise ValueError("Karar listesi bu optimizasyona ait değil.")
     for row, value in values.items():
         f = options[row]
         if type(value) not in (int,float) or not math.isfinite(value) or not 0 <= value < f["current"]:
@@ -97,13 +97,13 @@ def dispatch(actor, session, payload):
                 "Key":state["artifacts"]+"/"+name,"ResponseContentDisposition":f'attachment; filename="{name}"'}, ExpiresIn=300)}
     if action in {"view", "depot"}:
         if not state or state["stage"] != "ready":
-            raise ValueError("Önce koşuyu tamamlayın.")
+            raise ValueError("Önce optimizasyonu tamamlayın.")
         if action == "view":
             return read_json(client, bucket, state["artifacts"]+"/view.json")[0]
         name = payload.get("name")
         depots = read_json(client, bucket, state["artifacts"]+"/depots.json")[0]
         if not isinstance(name, str) or name not in depots:
-            raise ValueError("Depo bu koşuda bulunamadı.")
+            raise ValueError("Depo bu optimizasyonda bulunamadı.")
         return {"depo": name, **depots[name]}
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
@@ -137,7 +137,7 @@ def dispatch(actor, session, payload):
             client.put_object(Bucket=bucket, Key=attempt+"/view.json",Body=json.dumps(result["view"]).encode())
             state.update(stage="ready", artifacts=attempt, summary=result["summary"], changes=changes)
         else:
-            raise ValueError("Bu işlem için geçerli bir koşu gerekli.")
+            raise ValueError("Bu işlem için geçerli bir optimizasyon gerekli.")
         return visible(commit(client,bucket,prefix,state,version))
 
 
@@ -186,7 +186,7 @@ async def explain(actor, session, question, model):
     client = boto3.client("s3", config=Config(signature_version="s3v4"))
     state, _ = await asyncio.to_thread(state_for,client,bucket,f"runs/{actor}/{session}")
     if not state or state["stage"] != "ready":
-        raise ValueError("Önce koşuyu tamamlayın.")
+        raise ValueError("Önce optimizasyonu tamamlayın.")
     depots, _ = await asyncio.to_thread(read_json,client,bucket,state["artifacts"]+"/depots.json")
     answer = depot_cut_answer(question, depots, state)
     if answer:
@@ -218,7 +218,7 @@ async def explain(actor, session, question, model):
     context = json.dumps({k: v for k, v in summary.items() if k != "alerts"}, ensure_ascii=False)
     try:
         result = await agent.invoke_async(
-            f"Koşu kaynağı: sonuc.json ve ana parquet\n{context}\nKullanıcının sorusu: {question}",
+            f"Optimizasyon kaynağı: sonuc.json ve ana parquet\n{context}\nKullanıcının sorusu: {question}",
             limits={"turns": 5},
         )
     except MaxTokensReachedException:

@@ -14,16 +14,16 @@ export interface CsvFile {
 const slugCtx = (c: SampleContext) => `${slugify(c.merkez)}-${c.transferType}-${c.isoDate}`;
 
 function runStatus(r: ApprovalResolution | undefined): string {
-  if (!r) return 'Bu oturumda koşu çalıştırılmadı';
-  return (r.outcome.kind === 'applied' ? 'Koşuda düzeltildi: ' : 'Düzeltilmedi: ') + r.summary + (r.note ? ` (not: ${r.note})` : '');
+  if (!r) return 'Bu oturumda optimizasyon çalıştırılmadı';
+  return (r.outcome.kind === 'applied' ? 'Optimizasyonda düzeltildi: ' : 'Düzeltilmedi: ') + r.summary + (r.note ? ` (not: ${r.note})` : '');
 }
 
 /**
  * Forecast anomali listesi. Örnek veride yalnızca ekranda görünen satırlar vardır
- * (Coca-Cola Zero aykırı depoları + agent'ın koşuda sorduğu bulgular); 2.032 satırın tamamı backend'den gelir.
+ * (Coca-Cola Zero aykırı depoları + agent'ın optimizasyonda sorduğu bulgular); 2.032 satırın tamamı backend'den gelir.
  */
 export function anomalyCsv(data: AnomalyData, resolutions: readonly ApprovalResolution[]): CsvFile {
-  const header = ['Tür', 'Depo', 'Ürün', 'Alan', 'Değer', 'Medyan', 'Medyanın katı', 'Agent notu', 'Koşu durumu'];
+  const header = ['Tür', 'Depo', 'Ürün', 'Alan', 'Değer', 'Medyan', 'Medyanın katı', 'Agent notu', 'Optimizasyon durumu'];
   const stock = data.outliers
     .slice()
     .sort((a, b) => b.value - a.value)

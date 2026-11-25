@@ -145,7 +145,7 @@ function applyRunEvent(run: RunState, event: RunEvent): { run: RunState; announc
     case 'run_failed':
       return {
         run: { ...run, status: 'failed', pendingApproval: null, error: event.error },
-        announcement: 'Koşu tamamlanamadı: ' + event.error.message,
+        announcement: 'Optimizasyon tamamlanamadı: ' + event.error.message,
       };
   }
 }
@@ -184,12 +184,12 @@ export function reducer(state: StoreState, action: StoreAction): StoreState {
       if (action.selection) {
         return { ...state, selection: action.selection, run: newRun(action.selection), responding: false, responseError: null };
       }
-      return { ...state, run: newRun(state.selection), responding: false, responseError: null, announcement: 'Koşu başlatılıyor' };
+      return { ...state, run: newRun(state.selection), responding: false, responseError: null, announcement: 'Optimizasyon başlatılıyor' };
     case 'run_event': {
       const run = state.run;
       if (!run) return state;
       const id = eventRunId(action.event);
-      // Başka (eski) bir koşuya ait olayları yok say.
+      // Başka (eski) bir optimizasyona ait olayları yok say.
       if (run.context && id !== null && id !== run.context.runId) return state;
       const next = applyRunEvent(run, action.event);
       const settled = action.event.type === 'approval_requested' || action.event.type === 'approval_resolved'

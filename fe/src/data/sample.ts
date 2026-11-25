@@ -28,7 +28,7 @@ function dayLabel(i: number): string {
 
 const DAYS = Array.from({ length: N_DAYS }, (_, i) => dayLabel(i));
 
-// ---- Koşu ekranı ----
+// ---- Optimizasyon ekranı ----
 
 function tip(id: TransferTypeId, ad: string, relexAt: string | null, lineCount: number | null, ranAt: string | null) {
   return { id, ad, relexAt, lineCount, ranAt };
@@ -43,7 +43,7 @@ export const MERKEZLER: MerkezOption[] = [
   { ad: 'Diyarbakır', tipler: [tip('amb', 'Ambient & Su', '06:16', 4320, null), tip('c4', '+4 (Soğuk)', '06:35', 2180, null)], note: "Diyarbakır'da Meyve-Sebze transferi yok." },
 ];
 
-// ---- Agent'ın koşu sırasında bulduğu aykırı PL önerileri (mock agent kullanır) ----
+// ---- Agent'ın optimizasyon sırasında bulduğu aykırı PL önerileri (mock agent kullanır) ----
 
 export interface SampleOutlier {
   findingKey: string;
@@ -86,7 +86,7 @@ export const SAMPLE_OUTLIERS: SampleOutlier[] = [
 
 export const RESULTS: ResultsData = {
   context: SAMPLE_CONTEXT,
-  headline: 'Maltepe Ambient & Su koşusu hazır: 52.872 öneri satırı, 29.688 satır gönderiliyor, kısma oranı %44. 1 kritik, 3 uyarı var.',
+  headline: 'Maltepe Ambient & Su optimizasyonu hazır: 52.872 öneri satırı, 29.688 satır gönderiliyor, kısma oranı %44. 1 kritik, 3 uyarı var.',
   suggestedLines: 52872,
   sentLines: 29688,
   cpPct: 56.2,
@@ -96,9 +96,9 @@ export const RESULTS: ResultsData = {
   anomalyTotal: 2032,
   alerts: [
     {
-      level: 'kritik', title: '4 koşu dosyası günün All PL kaydında yok',
+      level: 'kritik', title: '4 optimizasyon dosyası günün All PL kaydında yok',
       scope: '+4 Maltepe · +4 Arnavutköy · MS Maltepe · MS Adana', evidence: '4 dosya var, 0 kayıt',
-      action: 'Sevkiyattan önce All PL kaydını tamamlayın.', link: { route: '/kosu', label: 'Koşu ekranı →' },
+      action: 'Sevkiyattan önce All PL kaydını tamamlayın.', link: { route: '/kosu', label: 'Optimizasyon ekranı →' },
     },
     {
       level: 'uyari', title: 'Göztepe %93 kısıldı, dolapta yer var', scope: 'Göztepe · kısıt: TIR limiti',
@@ -284,7 +284,7 @@ const GOZTEPE: DepotDetail = {
     mean: 14,
     median: 16,
     found: "Forecast bu ürün için Göztepe'ye 100 adet öneriyordu. Diğer G10 depolarda aynı ürünün önerisi ortalama 14, medyan 16; değer medyanın yaklaşık 6 katı.",
-    proposed: 'Öneriyi G10 medyanına çekmek: 100 → 16 (−84 adet). Yalnızca bu koşuda, kesim motorundan önce; Forecast kaydına dokunmadan.',
+    proposed: 'Öneriyi G10 medyanına çekmek: 100 → 16 (−84 adet). Yalnızca bu optimizasyonda, kesim motorundan önce; Forecast kaydına dokunmadan.',
     absorbedByCut: 'palet',
   },
   tir: {
@@ -317,7 +317,7 @@ const GOZTEPE: DepotDetail = {
   levers: [
     { lever: 'TIR limiti', effect: '4 → 12 palet: önerinin yaklaşık %29\'u gider (bugün %7).', assessment: 'Asıl kısıt bu. Dolapta yer var, backlog 0.', result: { kind: 'chip', tone: 'iyi', label: 'Önerilir' } },
     { lever: 'Buffer', effect: 'Etkisiz.', assessment: 'Dolap %28,6 dolu; hacim kısıtına takılmıyor.', result: { kind: 'chip', tone: 'notr', label: 'Gerekmez' } },
-    { lever: 'Sharing', effect: 'Bu koşuyu etkilemez; +4 dolabı için geçerli.', assessment: '+4\'te Other %117, MS %60: pay 0,77/0,23 → 0,84/0,16 önerisi ayrı.', result: { kind: 'text', label: 'Ayrı değerlendirilir' } },
+    { lever: 'Sharing', effect: 'Bu optimizasyonu etkilemez; +4 dolabı için geçerli.', assessment: '+4\'te Other %117, MS %60: pay 0,77/0,23 → 0,84/0,16 önerisi ayrı.', result: { kind: 'text', label: 'Ayrı değerlendirilir' } },
     { lever: 'Case picking', effect: 'Günde 153,7 satır kazancı, 3.260 L ek stok.', assessment: 'Doluluk %72,8 → %81,2. Haftalık öneride.', result: { kind: 'text', label: 'Ayrı değerlendirilir' } },
     { lever: 'Ek dolap', effect: 'Etkisiz.', assessment: 'Tam gönderimde doluluk %84,6; dolap yetiyor.', result: { kind: 'chip', tone: 'notr', label: 'Gerekmez' } },
   ],

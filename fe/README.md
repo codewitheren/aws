@@ -2,15 +2,15 @@
 
 Transfer ekibinin iç aracı. Analist bir merkez depo ve transfer tipi seçer; sistem bugünün Forecast önerisini alır, kesim motorunu çalıştırır, ardından bir AI agent sonucu kontrol eder. Agent aykırı PL önerileri bulursa ne bulduğunu ve ne önerdiğini anlatır, onay ister. Arayüz transfer çıktısını, agent'ın bulgularını, açıklamalarını ve grafikleri gösterir.
 
-**Temel kural:** Agent Forecast'a ya da başka hiçbir sisteme yazmaz. Onaylanan düzeltmeler yalnızca o koşunun çıktısına uygulanır; kullanıcı dosyaları indirip kendisi uygular.
+**Temel kural:** Agent Forecast'a ya da başka hiçbir sisteme yazmaz. Onaylanan düzeltmeler yalnızca o optimizasyonun çıktısına uygulanır; kullanıcı dosyaları indirip kendisi uygular.
 
-Koşular yalnızca bugün için yapılır (tarih seçici yoktur).
+Optimizasyonlar yalnızca bugün için yapılır (tarih seçici yoktur).
 
 ## Ekranlar
 
 | Adres | Ekran |
 |---|---|
-| `#/kosu` | Koşu başlatma: merkez, transfer tipi, Hesapla, koşu durumu ve agent onayları |
+| `#/kosu` | Optimizasyon başlatma: merkez, transfer tipi, Hesapla, optimizasyon durumu ve agent onayları |
 | `#/sonuclar` | Sonuç özeti (göstergeler, uyarılar, dosyalar, "Agent'a sor") |
 | `#/sonuclar/anomaliler` | Forecast anomalileri |
 | `#/trend` | Kısma trendi (30 gün) |
@@ -48,17 +48,17 @@ src/
     mockClient.ts   Tasarımdaki akışı zamanlayıcılarla canlandıran mock agent
     mockInstruction.ts  Mock agent'ın serbest metin talimatı yorumu
     mockChat.ts     "Agent'a sor" için hazır yanıtlar
-    agentcore.ts    Canlı istemci: Cognito girişi, AgentCore çağrısı, onaylar, koşu geri yükleme
+    agentcore.ts    Canlı istemci: Cognito girişi, AgentCore çağrısı, onaylar, optimizasyon geri yükleme
     sse.ts          fetch gövdesinden SSE ayrıştırıcı (POST destekler)
     index.ts        VITE_AGENT_MODE'a göre istemci seçimi
-  run/              Koşu durumu: tek doğruluk kaynağı
-    reducer.ts      AgentEvent'leri tüketen reducer (koşu, onaylar, sohbet)
+  run/              Optimizasyon durumu: tek doğruluk kaynağı
+    reducer.ts      AgentEvent'leri tüketen reducer (optimizasyon, onaylar, sohbet)
     RunProvider.tsx React context + eylemler
     selectors.ts    Bulgu durumu, düzeltme sayıları
     depotOutcome.ts Karar → depo rakamları (öneri, kesim, gönderilen)
   data/             Ekran verisi
     types.ts        Veri tipleri
-    live.ts         Canlı koşu verisini ekran tiplerine çevirir
+    live.ts         Canlı optimizasyon verisini ekran tiplerine çevirir
     sample.ts       Örnek veri (sabit rakamlar + tohumlu örnek seriler)
     api.ts          Async veri katmanı (backend'e geçişte değişecek tek dosya) + .xlsx isteği
     exports.ts      İstemci tarafında üretilen CSV'ler
@@ -71,9 +71,9 @@ src/
   styles.css        Tasarım belirteçleri ve sınıflar
 ```
 
-Akış: `RunProvider` bir `AgentClient` alır → `startRun` olayları reducer'a aktarılır → tüm ekranlar aynı durumu okur. Koşu sırasında verilen kararlar Sonuçlar özetinde (düzeltme sayısı), anomali CSV'sinde (koşu durumu sütunu) ve Göztepe detayında (öneri kartı, kesim şelalesi, açıklama) görünür. Koşu yapılmadan da sonuç ekranları örnek veriyle açılır.
+Akış: `RunProvider` bir `AgentClient` alır → `startRun` olayları reducer'a aktarılır → tüm ekranlar aynı durumu okur. Optimizasyon sırasında verilen kararlar Sonuçlar özetinde (düzeltme sayısı), anomali CSV'sinde (optimizasyon durumu sütunu) ve Göztepe detayında (öneri kartı, kesim şelalesi, açıklama) görünür. Optimizasyon yapılmadan da sonuç ekranları örnek veriyle açılır.
 
-Mock agent bulguları yalnızca örnek kombinasyon **Maltepe · Ambient & Su** için üretir. Başka bir merkez/tip koşulursa akış tamamlanır ama aykırı öneri sorulmaz ve sonuç ekranları bunun örnek veri olduğunu açıkça söyler.
+Mock agent bulguları yalnızca örnek kombinasyon **Maltepe · Ambient & Su** için üretir. Başka bir merkez/tip çalıştırılırsa akış tamamlanır ama aykırı öneri sorulmaz ve sonuç ekranları bunun örnek veri olduğunu açıkça söyler.
 
 ### Mock agent'ta serbest metin talimatı
 
@@ -81,31 +81,31 @@ Mock agent bulguları yalnızca örnek kombinasyon **Maltepe · Ambient & Su** i
 - "ortalama" → G10 ortalamasına çekilir; "medyan" → medyana çekilir.
 - Diğer her şey → not olarak kaydedilir, öneri değiştirilmez (ret gibi işlenir) ve not ekranda gösterilir.
 
-Son bulgu yanıtlanınca koşu kendiliğinden devam eder.
+Son bulgu yanıtlanınca optimizasyon kendiliğinden devam eder.
 
 ## Canlı mod: AgentCore bağlantısı
 
-`src/agent/agentcore.ts` backend'in (`agent/main.py`) eylemleriyle konuşur. Her çağrı `start` → `pending`… → `transfer` olaylarını akıtır. Koşu kimliği Runtime oturum UUID'sidir.
+`src/agent/agentcore.ts` backend'in (`agent/main.py`) eylemleriyle konuşur. Her çağrı `start` → `pending`… → `transfer` olaylarını akıtır. Optimizasyon kimliği Runtime oturum UUID'sidir.
 
 | Arayüz adımı | Backend eylemi |
 |---|---|
 | Hesapla | `prepare` (merkez, tip `amb`/`cold`/`ms`, İstanbul'a göre bugün) → girdiler + aykırı PL bulguları |
 | Onay kartları | Tarayıcıda; kararlar `finish` çağrısına `changes` (satır → sipariş katına yuvarlanmış miktar) olarak gider |
 | Kesim motoru | `finish` → özet, dosyalar S3'te |
-| Sayfa yenileme | `status` ile bu sekmedeki son koşu geri yüklenir |
+| Sayfa yenileme | `status` ile bu sekmedeki son optimizasyon geri yüklenir |
 | Sonuçlar, Trend, Depolar | `view` (depo tablosu, neden payları, öneri kontrol kartları, tam gönderim doluluğu) |
 | Depo detayı | `depot` (motor kanıtı, neden kırılımı, en çok kesilen 10 ürün) |
 | Dosyalar | `download` → 5 dakikalık imzalı bağlantı |
-| Agent'a sor | `explain` (Strands agent, koşu kanıtıyla) |
+| Agent'a sor | `explain` (Strands agent, optimizasyon kanıtıyla) |
 
-Canlı modda geçmiş koşu arşivi olmadığı için 30 günlük trend, ısı haritası, "düne göre" farklar ve kaldıraç tablosu gösterilmez; ekran bunu açıkça yazar ve örnek rakam göstermez.
+Canlı modda geçmiş optimizasyon arşivi olmadığı için 30 günlük trend, ısı haritası, "düne göre" farklar ve kaldıraç tablosu gösterilmez; ekran bunu açıkça yazar ve örnek rakam göstermez.
 
 ## Veri: verilen mi, örnek mi? (mock mod)
 
 Mock modda tüm ekran verisi örnektir (Maltepe · Ambient & Su, 23.11.2026). İçinde iki tür rakam vardır:
 
 **Tasarımda verilen sabit değerler** (`src/data/sample.ts`, aynen aktarıldı):
-- Koşu ekranı: merkezler, transfer tipleri, Forecast geliş saatleri, öneri satır sayıları, "bugün koşuldu" saatleri.
+- Optimizasyon ekranı: merkezler, transfer tipleri, Forecast geliş saatleri, öneri satır sayıları, "bugün çalıştırıldı" saatleri.
 - Agent bulguları: Göztepe Bulaşık süngeri 5'li 100 (ort. 14, medyan 16); Bostancı Kedi maması 400 g tahmin 86 (ort. 11, medyan 9); Acıbadem Pirinç 1 kg 120 (ort. 19, medyan 18).
 - Sonuçlar: 52.872 önerilen / 29.688 gönderilen satır, C/P %56,2, kısma %44,2 (+1,8 / +3,1 puan), satır limiti 9.412 / 10.000, 5 uyarının metni ve kanıtları, 2.032 anomali (682 / 942 / 408).
 - Anomali tablosu: SuadiyeBüyük 448, Kozyatağı 212, Moda 196; medyan 68, üst sınır 170.
@@ -120,15 +120,15 @@ Mock modda tüm ekran verisi örnektir (Maltepe · Ambient & Su, 23.11.2026). İ
 - Depolar dağılım grafiğindeki adsız noktalar (tohum 513).
 - Göztepe 30 günlük kısma trendi ve merkez ortalaması çizgisi (tohum 93).
 
-**Uygulamanın hesapladıkları:** koşu kararlarına göre Göztepe'nin düzeltilmiş önerisi ve palet limiti kesimi (ör. medyan kabulünde 25.521 / 21.244; gönderilen 1.805 değişmez), düzeltme sayıları, CSV içerikleri.
+**Uygulamanın hesapladıkları:** optimizasyon kararlarına göre Göztepe'nin düzeltilmiş önerisi ve palet limiti kesimi (ör. medyan kabulünde 25.521 / 21.244; gönderilen 1.805 değişmez), düzeltme sayıları, CSV içerikleri.
 
 **Not:** Verilen kısma oranı (%44,2) satır sayılarından hesaplanan değerle (1 − 29.688 / 52.872 ≈ %43,8) birebir tutmuyor; muhtemelen miktar bazlı. Tasarımdaki değer olduğu gibi gösteriliyor.
 
-**İndirilen dosyalar:** Anomali CSV'si yalnızca örnek verideki satırları içerir (3 aykırı depo + agent'ın 3 bulgusu ve koşu durumu), 2.032 satırın tamamını değil; düğme etiketi bunu belirtir. Uyarı CSV'si 5 uyarının tamamını içerir. CSV'ler `;` ayırıcılı, UTF-8 BOM'lu (Türkçe Excel için).
+**İndirilen dosyalar:** Anomali CSV'si yalnızca örnek verideki satırları içerir (3 aykırı depo + agent'ın 3 bulgusu ve optimizasyon durumu), 2.032 satırın tamamını değil; düğme etiketi bunu belirtir. Uyarı CSV'si 5 uyarının tamamını içerir. CSV'ler `;` ayırıcılı, UTF-8 BOM'lu (Türkçe Excel için).
 
 ## Erişilebilirlik ve tema
 
 - Açık/koyu tema: varsayılan `prefers-color-scheme`; kenar çubuğundaki düğmeyle değiştirilir ve `localStorage`'da saklanır (erişilemezse oturum içinde çalışır).
-- Koşu durumu `aria-live` ile duyurulur; yeni agent önerisinde odak önerinin başlığına taşınır; rota değişiminde odak sayfa başlığına gider.
+- Optimizasyon durumu `aria-live` ile duyurulur; yeni agent önerisinde odak önerinin başlığına taşınır; rota değişiminde odak sayfa başlığına gider.
 - Grafiklerin metin karşılıkları (`aria-label`) ve her işarette araç ipucu (`<title>`) vardır; uyarı seviyeleri renk + metin + farklı işaret şekliyle gösterilir.
 - Tablolar ve geniş grafikler dar ekranda kendi kutularında kayar; sayfa 390 px genişlikte yatay kaymaz.

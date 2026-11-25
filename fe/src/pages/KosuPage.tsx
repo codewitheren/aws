@@ -14,7 +14,7 @@ export function KosuPage() {
   return (
     <div className="stack" data-focus-scope="kosu">
       <header className="page-head">
-        <h1 tabIndex={-1}>Koşu başlat</h1>
+        <h1 tabIndex={-1}>Optimizasyon başlat</h1>
         <p className="sub">Merkez depo ve transfer tipini seçin. Sistem bugünün Forecast önerisini alır, kesim motorunu çalıştırır, agent sonucu kontrol eder.</p>
       </header>
       <Loadable resource={options}>{(merkezler) => <KosuForm merkezler={merkezler} />}</Loadable>
@@ -87,7 +87,7 @@ function KosuForm({ merkezler }: { merkezler: MerkezOption[] }) {
                   <span className="tip-name">{t.ad}</span>
                   <span style={{ flex: '1 1 150px' }}><span className="lbl">Forecast girdisi</span><span>{t.relexAt ? 'Geldi · ' + t.relexAt : t.relexNote ?? 'Bekleniyor'}</span></span>
                   <span style={{ flex: '1 1 110px' }}><span className="lbl">Öneri satırı</span><span>{t.lineCount !== null ? nf(t.lineCount) : '—'}</span></span>
-                  <span style={{ flex: '1 1 150px' }}><span className="lbl">Bugün</span><span>{ran ? ran + "'de koşuldu" : 'Koşulmadı'}</span></span>
+                  <span style={{ flex: '1 1 150px' }}><span className="lbl">Bugün</span><span>{ran ? ran + "'de çalıştırıldı" : 'Çalıştırılmadı'}</span></span>
                 </button>
               );
             })}
@@ -98,15 +98,15 @@ function KosuForm({ merkezler }: { merkezler: MerkezOption[] }) {
         <section className="card" aria-labelledby="s3">
           <h2 id="s3">3 · Çalıştır</h2>
           <div className="split" style={{ alignItems: 'center', gap: 16 }}>
-            <div className="kv"><span className="lbl">Koşu günü</span><strong>Bugün · {formatDateWithWeekday(today)}</strong></div>
+            <div className="kv"><span className="lbl">Optimizasyon günü</span><strong>Bugün · {formatDateWithWeekday(today)}</strong></div>
             <button type="button" className="btn btn-p" style={{ minWidth: 160 }} disabled={active || !(tip.relexAt || tip.relexNote)} onClick={actions.startRun}>
               {buttonText}
             </button>
           </div>
           {run && !active && !sameAsRun && (
-            <p className="sub" role="note">Son koşu {runLabel} içindi. Yeni seçiminiz için Hesapla'ya basın.</p>
+            <p className="sub" role="note">Son optimizasyon {runLabel} içindi. Yeni seçiminiz için Hesapla'ya basın.</p>
           )}
-          <p className="sub">Koşu yalnızca bugünün Forecast önerisiyle çalışır. Agent aykırı bir PL bulursa ne bulduğunu ve ne önerdiğini anlatır, onayınızı ister; onayladıklarınız yalnızca bu koşunun çıktısına uygulanır. Forecast'a ya da başka bir sisteme yazmaz.</p>
+          <p className="sub">Optimizasyon yalnızca bugünün Forecast önerisiyle çalışır. Agent aykırı bir PL bulursa ne bulduğunu ve ne önerdiğini anlatır, onayınızı ister; onayladıklarınız yalnızca bu optimizasyonun çıktısına uygulanır. Forecast'a ya da başka bir sisteme yazmaz.</p>
         </section>
       </div>
 

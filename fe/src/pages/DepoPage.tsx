@@ -40,7 +40,7 @@ function NoData({ name }: { name: string | null }) {
         <h2 id="nd">Bu depo için detay verisi yok</h2>
         <p className="measure">
           {name ? `${name} için` : 'Bu adres için'} gösterilecek depo detayı bulunmuyor.{' '}
-          {config.agentMode === 'agentcore' ? 'Depo bu koşunun öneri listesinde yok.' : 'Örnek veride yalnızca Göztepe ve Kavacık için detay var; başka bir deponun verisini bu adla göstermiyoruz.'}
+          {config.agentMode === 'agentcore' ? 'Depo bu optimizasyonun öneri listesinde yok.' : 'Örnek veride yalnızca Göztepe ve Kavacık için detay var; başka bir deponun verisini bu adla göstermiyoruz.'}
         </p>
         <div className="inline">
           <Link className="btn btn-p" to={paths.depolar}>Depo listesine dön</Link>
@@ -60,8 +60,8 @@ function correctionSummary(d: DepotDetail, state: FindingState, total: number): 
   const f = d.finding;
   if (!f) return null;
   const lead = `${f.product} önerisi ${f.group} medyanından çok uzaktı (${nf(f.relexValue)}; medyan ${nf(f.median)}).`;
-  if (state.kind === 'not_asked') return `${lead} Bu oturumda ${f.merkez} koşusu yapılmadı; agent bunu koşu sırasında onayınıza sunar. Şu an Forecast değerleri gösteriliyor.`;
-  if (state.kind === 'pending') return `${lead} Koşu sürüyor; bu öneri için kararınız bekleniyor.`;
+  if (state.kind === 'not_asked') return `${lead} Bu oturumda ${f.merkez} optimizasyonu yapılmadı; agent bunu optimizasyon sırasında onayınıza sunar. Şu an Forecast değerleri gösteriliyor.`;
+  if (state.kind === 'pending') return `${lead} Optimizasyon sürüyor; bu öneri için kararınız bekleniyor.`;
   const o = state.resolution.outcome;
   if (o.kind === 'applied') {
     const what = o.method === 'median' ? `Onayınızla ${nf(o.value)} adede çekildi`
@@ -99,7 +99,7 @@ function Detail({ d }: { d: DepotDetail }) {
         </div>
         <p className="sub">{d.context.merkez} · {d.context.transferTypeLabel} · {d.context.dateLabel.split(' ')[0]} · kısma oranı {pct(d.cutPct)}</p>
         <div className="inline">
-          <Link className="btn btn-sm" to={paths.sonuclar}>Koşu sonuçları</Link>
+          <Link className="btn btn-sm" to={paths.sonuclar}>Optimizasyon sonuçları</Link>
           <Link className="btn btn-sm" to={paths.trend}>Merkez trendi</Link>
         </div>
       </header>
@@ -109,7 +109,7 @@ function Detail({ d }: { d: DepotDetail }) {
         <p style={{ fontSize: 17, fontWeight: 600, lineHeight: 1.4, textWrap: 'pretty' }}>{d.explanation.headline}</p>
         <p className="measure">{fillTemplate(d.explanation.body, tokens)}</p>
         <p className="measure"><strong>Öneri:</strong> {d.explanation.recommendation}</p>
-        {correction && <p className="measure"><strong>Koşu sırasındaki düzeltme:</strong> {correction}</p>}
+        {correction && <p className="measure"><strong>Optimizasyon sırasındaki düzeltme:</strong> {correction}</p>}
       </section>
 
       {d.finding && (

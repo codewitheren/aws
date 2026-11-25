@@ -26,7 +26,7 @@ export function DecisionsDialog({ open, onClose, resolutions }: { open: boolean;
       <div className="dlg-head">
         <div className="stack-s">
           <h2 id="dlg-t">Verdiğiniz kararlar</h2>
-          <span className="sub">Yalnızca bu koşunun girdisine uygulanır; Forecast'ta kayıt değişmez.</span>
+          <span className="sub">Yalnızca bu optimizasyonun girdisine uygulanır; Forecast'ta kayıt değişmez.</span>
         </div>
         <button type="button" className="btn btn-sm" onClick={onClose} aria-label="Kapat">✕</button>
       </div>

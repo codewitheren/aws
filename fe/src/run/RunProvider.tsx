@@ -18,7 +18,7 @@ interface RunStore {
 
 const RunContext = createContext<RunStore | null>(null);
 
-/** Koşu ve sohbet durumunun tek kaynağı. Agent olaylarını reducer'a aktarır. */
+/** Optimizasyon ve sohbet durumunun tek kaynağı. Agent olaylarını reducer'a aktarır. */
 export function RunProvider({ client, children }: { client: AgentClient; children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const stateRef = useRef(state);
@@ -35,7 +35,7 @@ export function RunProvider({ client, children }: { client: AgentClient; childre
     chatHandle.current?.abort();
   }, []);
 
-  // Sayfa yenilenince bu sekmedeki son koşuyu geri yükle (yalnızca AgentCore istemcisinde var).
+  // Sayfa yenilenince bu sekmedeki son optimizasyonu geri yükle (yalnızca AgentCore istemcisinde var).
   useEffect(() => {
     if (!client.resume) return;
     const token = ++runToken.current;

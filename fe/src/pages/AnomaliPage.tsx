@@ -24,7 +24,7 @@ export function AnomaliPage() {
 
 const cell = (v: string | number | null) => (typeof v === 'number' ? nf(v, v % 1 ? 1 : 0) : v ?? '');
 
-/** Canlı koşu: motorun öneri kontrol kartları, her biri kendi tablosuyla. */
+/** Canlı optimizasyon: motorun öneri kontrol kartları, her biri kendi tablosuyla. */
 function LiveAnomalies({ data, cards }: { data: AnomalyData; cards: AnomalyCard[] }) {
   const download = () => void downloadRunFile('anomaliler.csv').catch(() => undefined);
   return (
@@ -38,7 +38,7 @@ function LiveAnomalies({ data, cards }: { data: AnomalyData; cards: AnomalyCard[
             <span className="big">{nf(c.count)} satır</span>
           </div>
         ))}
-        {cards.length === 0 && <p className="sub">Bu koşuda öneri kontrolü bulgusu yok.</p>}
+        {cards.length === 0 && <p className="sub">Bu optimizasyonda öneri kontrolü bulgusu yok.</p>}
       </section>
       {cards.map((c, i) => {
         const depot = c.columns.indexOf('Depo');

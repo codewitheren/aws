@@ -8,7 +8,7 @@ export function NotFoundPage({ path }: { path: string }) {
         <p className="sub">“{path}” adresinde bir ekran yok.</p>
       </header>
       <div className="inline">
-        <Link className="btn btn-p" to={paths.kosu}>Koşu ekranına git</Link>
+        <Link className="btn btn-p" to={paths.kosu}>Optimizasyon ekranına git</Link>
         <Link className="btn" to={paths.sonuclar}>Sonuçlar</Link>
       </div>
     </div>

@@ -130,7 +130,7 @@ def finish(root, job):
             evidence = " · ".join(f"{key} {value}" for key, value in record.items()
                                  if key not in ("Depo", "Ürün") and value is not None)
             anomaly_rows.append([card["baslik"], record.get("Depo"), record.get("Ürün"), evidence, ""])
-    write_csv(root/"anomaliler.csv", ["Kontrol","Depo","Ürün","Kanıt","Koşu değeri"], anomaly_rows)
+    write_csv(root/"anomaliler.csv", ["Kontrol","Depo","Ürün","Kanıt","Optimizasyon değeri"], anomaly_rows)
     limits = report["ozet"]["merkez"]
     summary = dict(center=job["center"], date=job["date"], kind=kind, suggested=suggested, sent=sent,
                    cp=round(100*sent/suggested,2) if suggested else None, cut=rates, limits=limits,

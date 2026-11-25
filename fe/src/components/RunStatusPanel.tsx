@@ -60,7 +60,7 @@ export function RunStatusPanel({ run, title, announcement, responding, responseE
   return (
     <section className="card" aria-labelledby="s4" style={{ flex: '2 1 380px' }}>
       <div className="stack-s">
-        <h2 id="s4">Koşu durumu</h2>
+        <h2 id="s4">Optimizasyon durumu</h2>
         <span className="sub">{title}</span>
       </div>
       <p className="sr-only" role="status" aria-live="polite">{announcement}</p>
@@ -119,11 +119,11 @@ export function RunStatusPanel({ run, title, announcement, responding, responseE
             </span>
           )}
           <span style={{ fontSize: 13 }}>
-            Düzeltmeler yalnızca bu koşunun çıktısına uygulandı; Forecast'a ya da başka bir sisteme yazılmadı.
+            Düzeltmeler yalnızca bu optimizasyonun çıktısına uygulandı; Forecast'a ya da başka bir sisteme yazılmadı.
           </span>
           {!run.summary.resultsAvailable && (
             <span style={{ fontSize: 13 }}>
-              Sonuç ekranları şu an Maltepe · Ambient &amp; Su örnek koşusunu gösteriyor.
+              Sonuç ekranları şu an Maltepe · Ambient &amp; Su örnek optimizasyonunu gösteriyor.
             </span>
           )}
           <Link className="btn btn-p" to={paths.sonuclar}>Sonuçları aç</Link>
@@ -132,7 +132,7 @@ export function RunStatusPanel({ run, title, announcement, responding, responseE
       <DecisionsDialog open={showDecisions} onClose={() => setShowDecisions(false)} resolutions={run?.resolutions ?? []} />
       {run?.status === 'failed' && run.error && (
         <div className="err-box" role="alert">
-          <strong>Koşu tamamlanamadı.</strong>
+          <strong>Optimizasyon tamamlanamadı.</strong>
           <span>{run.error.message}</span>
         </div>
       )}

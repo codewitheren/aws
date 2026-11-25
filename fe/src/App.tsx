@@ -12,7 +12,7 @@ import { useRunStore } from './run/RunProvider';
 import { useTheme } from './theme/theme';
 
 const TITLES: Record<Route['name'], string> = {
-  kosu: 'Koşu başlat',
+  kosu: 'Optimizasyon başlat',
   sonuclar: 'Sonuçlar',
   anomaliler: 'Forecast anomalileri',
   trend: 'Kısma trendi',

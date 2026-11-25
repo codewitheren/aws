@@ -16,7 +16,7 @@ export interface RunContext {
   merkez: string;
   transferType: TransferTypeId;
   transferTypeLabel: string;
-  /** Koşu günü, "YYYY-MM-DD". Koşular yalnızca bugün için yapılır. */
+  /** Optimizasyon günü, "YYYY-MM-DD". Optimizasyonlar yalnızca bugün için yapılır. */
   runDate: string;
 }
 
@@ -74,7 +74,7 @@ export interface RunSummary {
   corrections: { applied: number; unchanged: number };
   /** ISO 8601 */
   finishedAt: string;
-  /** Sonuç ekranlarındaki veri bu koşuya mı ait? Mock modda yalnızca örnek kombinasyon için true. */
+  /** Sonuç ekranlarındaki veri bu optimizasyona mı ait? Mock modda yalnızca örnek kombinasyon için true. */
   resultsAvailable: boolean;
 }
 
@@ -133,7 +133,7 @@ export interface RespondToApprovalCommand {
 export interface AskCommand {
   type: 'ask';
   question: string;
-  /** Soru bir koşu bağlamında soruluyorsa onun kimliği. */
+  /** Soru bir optimizasyon bağlamında soruluyorsa onun kimliği. */
   runId: string | null;
 }
 

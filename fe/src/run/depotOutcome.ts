@@ -2,7 +2,7 @@ import type { DepotDetail, WaterfallCut } from '../data/types';
 import type { FindingState } from './selectors';
 
 export interface DepotFigures {
-  /** Koşuda kullanılan toplam öneri (düzeltme uygulandıysa düşmüş hali). */
+  /** Optimizasyonda kullanılan toplam öneri (düzeltme uygulandıysa düşmüş hali). */
   total: number;
   cuts: WaterfallCut[];
   sent: number;

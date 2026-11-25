@@ -18,7 +18,7 @@ export function FilesCard({ sentLines, anomalyFile, alertsFile }: Props) {
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  /** Canlı modda dosyalar koşunun S3 alanından imzalı bağlantıyla iner; mock modda CSV'ler tarayıcıda üretilir. */
+  /** Canlı modda dosyalar optimizasyonun S3 alanından imzalı bağlantıyla iner; mock modda CSV'ler tarayıcıda üretilir. */
   const get = async (name: 'transfer.xlsx' | 'uyarilar.csv' | 'anomaliler.csv', csv?: CsvFile) => {
     setMessage(null);
     if (!live) {

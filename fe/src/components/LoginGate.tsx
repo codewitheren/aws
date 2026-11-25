@@ -3,7 +3,7 @@ import { auth, login, logout } from '../agent/agentcore';
 
 export { logout };
 
-/** AgentCore modunda Cognito girişi; giriş yapılmadan uygulama (ve koşu durumu) kurulmaz. */
+/** AgentCore modunda Cognito girişi; giriş yapılmadan uygulama (ve optimizasyon durumu) kurulmaz. */
 export function LoginGate({ children }: { children: ReactNode }) {
   const user = useSyncExternalStore(auth.subscribe, auth.user);
   const [name, setName] = useState('');

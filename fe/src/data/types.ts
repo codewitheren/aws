@@ -6,7 +6,7 @@ export type CutReason = 'kap' | 'backlog' | 'limit' | 'yok';
 /** Depo kapasitesi alt kırılımları için turuncu tonları. */
 export type CutTone = 'kap' | 'kap2' | 'kap3';
 
-/** Örnek sonuç verisinin ait olduğu koşu. */
+/** Örnek sonuç verisinin ait olduğu optimizasyon. */
 export interface SampleContext {
   merkez: string;
   transferType: TransferTypeId;
@@ -16,7 +16,7 @@ export interface SampleContext {
   isoDate: string;
 }
 
-// ---- Koşu ekranı ----
+// ---- Optimizasyon ekranı ----
 
 export interface TransferTypeOption {
   id: TransferTypeId;
@@ -26,7 +26,7 @@ export interface TransferTypeOption {
   lineCount: number | null;
   /** Saat bilinmiyorsa gösterilecek açıklama; varsa tip seçilebilir. */
   relexNote?: string;
-  /** Bugün daha önce koşulduysa saati. */
+  /** Bugün daha önce çalıştırıldıysa saati. */
   ranAt: string | null;
 }
 
@@ -54,7 +54,7 @@ export interface ResultsData {
   sentLines: number;
   cpPct: number;
   cutPct: number;
-  /** Geçmiş koşu verisi yoksa null. */
+  /** Geçmiş optimizasyon verisi yoksa null. */
   cutDelta: { vsYesterday: number; vsLastWeekday: number } | null;
   lineLimit: { used: number; limit: number } | null;
   alerts: ResultAlert[];
@@ -77,7 +77,7 @@ export interface AnomalyOutlier {
   note: string;
 }
 
-/** Motorun öneri kontrol kartı (canlı koşu). */
+/** Motorun öneri kontrol kartı (canlı optimizasyon). */
 export interface AnomalyCard {
   title: string;
   subtitle: string;
@@ -89,7 +89,7 @@ export interface AnomalyData {
   context: SampleContext;
   total: number;
   categories: AnomalyCategory[];
-  /** Canlı koşuda motorun kontrol tabloları; varsa tek ürün grafiği yerine gösterilir. */
+  /** Canlı optimizasyonda motorun kontrol tabloları; varsa tek ürün grafiği yerine gösterilir. */
   cards?: AnomalyCard[];
   product: string;
   median: number;
@@ -141,9 +141,9 @@ export interface TrendHistory {
 export interface TrendData {
   context: SampleContext;
   rangeLabel: string;
-  /** Geçmiş koşu arşivi yoksa null; ekran yalnızca bugünü gösterir. */
+  /** Geçmiş optimizasyon arşivi yoksa null; ekran yalnızca bugünü gösterir. */
   history: TrendHistory | null;
-  /** Bugünkü koşunun kesinti nedenleri (kesilen miktarın payı). */
+  /** Bugünkü optimizasyonun kesinti nedenleri (kesilen miktarın payı). */
   todayReasons?: { label: string; pct: number; reason: CutReason }[];
   topCut: TopCutDepot[];
   limitNote: string;

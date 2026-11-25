@@ -18,7 +18,7 @@ function StateChip({ state }: { state: FindingState }) {
     case 'not_asked':
       return <Chip tone="notr">Bu oturumda sorulmadı</Chip>;
     case 'pending':
-      return <Chip tone="bilgi">{state.awaitingNow ? 'Onayınız bekleniyor' : 'Koşu sürüyor'}</Chip>;
+      return <Chip tone="bilgi">{state.awaitingNow ? 'Onayınız bekleniyor' : 'Optimizasyon sürüyor'}</Chip>;
     case 'resolved': {
       const o = state.resolution.outcome;
       if (o.kind === 'applied') return <Chip tone="iyi">{o.method === 'median' ? 'Onayladınız · uygulandı' : 'Talimatınızla uygulandı'}</Chip>;
@@ -33,21 +33,21 @@ function Outcome({ finding, state, relexTotal, total, delta, absorbedLabel }: Pr
   if (state.kind === 'not_asked') {
     return (
       <p className="measure">
-        Bu oturumda {finding.merkez} koşusu henüz yapılmadı; rakamlar Forecast değerleriyle gösteriliyor (depo önerisi {nf(relexTotal)}).
-        Koşu başlatıldığında agent aykırı önerileri onayınıza sunar. <Link to={paths.kosu}>Koşu ekranına git</Link>
+        Bu oturumda {finding.merkez} optimizasyonu henüz yapılmadı; rakamlar Forecast değerleriyle gösteriliyor (depo önerisi {nf(relexTotal)}).
+        Optimizasyon başlatıldığında agent aykırı önerileri onayınıza sunar. <Link to={paths.kosu}>Optimizasyon ekranına git</Link>
       </p>
     );
   }
   if (state.kind === 'pending') {
     return (
       <p className="measure">
-        {state.awaitingNow ? 'Agent şu an bu öneri için onayınızı bekliyor.' : 'Koşu sürüyor; bu öneri için henüz karar verilmedi.'}{' '}
-        Karar verilene kadar rakamlar Forecast değerleriyle gösteriliyor. <Link to={paths.kosu}>Koşu ekranına git</Link>
+        {state.awaitingNow ? 'Agent şu an bu öneri için onayınızı bekliyor.' : 'Optimizasyon sürüyor; bu öneri için henüz karar verilmedi.'}{' '}
+        Karar verilene kadar rakamlar Forecast değerleriyle gösteriliyor. <Link to={paths.kosu}>Optimizasyon ekranına git</Link>
       </p>
     );
   }
   const { outcome, note } = state.resolution;
-  const pendingRun = state.runCompleted ? '' : ' Koşu tamamlanınca çıktıya yansır.';
+  const pendingRun = state.runCompleted ? '' : ' Optimizasyon tamamlanınca çıktıya yansır.';
   if (outcome.kind === 'applied') {
     const how = outcome.method === 'median' ? 'Öneri medyana çekildi'
       : outcome.method === 'mean' ? `Öneri ${finding.group} ortalamasına çekildi`
@@ -57,13 +57,13 @@ function Outcome({ finding, state, relexTotal, total, delta, absorbedLabel }: Pr
         {how} ve kesim {nf(outcome.value)} adet üzerinden yapıldı (−{nf(finding.relexValue - outcome.value)} adet).
         Deponun toplam önerisi {nf(relexTotal)} adetten {nf(total)} adede indi.
         Gönderilen miktar değişmedi: bu {nf(delta)} adet zaten {absorbedLabel} kesilecekti.
-        Forecast'taki kayıt değişmedi; satır anomali listesinde "koşuda düzeltildi" notuyla duruyor.{pendingRun}
+        Forecast'taki kayıt değişmedi; satır anomali listesinde "optimizasyonda düzeltildi" notuyla duruyor.{pendingRun}
       </p>
     );
   }
   const why = outcome.reason === 'rejected' ? 'Öneri olduğu gibi bırakıldı'
     : outcome.reason === 'instruction_not_lower' ? `Talimatınızdaki değer (“${note ?? ''}”) mevcut öneriden küçük olmadığı için öneri değiştirilmedi`
-    : `Talimatınız (“${note ?? ''}”) bir düzeltme olarak yorumlanmadı; öneri olduğu gibi bırakıldı ve notunuz koşu kaydına eklendi`;
+    : `Talimatınız (“${note ?? ''}”) bir düzeltme olarak yorumlanmadı; öneri olduğu gibi bırakıldı ve notunuz optimizasyon kaydına eklendi`;
   return (
     <p className="measure">
       {why}; kesim {relex} adet üzerinden yapıldı. Deponun toplam önerisi {nf(relexTotal)} olarak kaldı.
@@ -72,7 +72,7 @@ function Outcome({ finding, state, relexTotal, total, delta, absorbedLabel }: Pr
   );
 }
 
-/** Depo detayında agent'ın koşu sırasında sorduğu aykırı PL önerisi ve sonucu. */
+/** Depo detayında agent'ın optimizasyon sırasında sorduğu aykırı PL önerisi ve sonucu. */
 export function FindingCard(props: Props) {
   const { finding, state } = props;
   const used = state.kind === 'resolved'
@@ -91,7 +91,7 @@ export function FindingCard(props: Props) {
         <div className="stack-s">
           <h2 id="gd">Aykırı PL önerisi: {finding.product}</h2>
           <span className="sub">
-            {state.kind === 'resolved' ? 'Agent koşu sırasında bulup size sordu' : 'Agent koşu sırasında soracak'}: "Medyana ({nf(finding.median)}) çekeyim mi?"
+            {state.kind === 'resolved' ? 'Agent optimizasyon sırasında bulup size sordu' : 'Agent optimizasyon sırasında soracak'}: "Medyana ({nf(finding.median)}) çekeyim mi?"
           </span>
         </div>
         <StateChip state={state} />
@@ -101,7 +101,7 @@ export function FindingCard(props: Props) {
         {kv(`${finding.group} ortalaması`, nf(finding.mean))}
         {kv(`${finding.group} medyanı`, nf(finding.median))}
         {kv('Agent önerisi', `${nf(finding.relexValue)} → ${nf(finding.median)}`)}
-        {kv('Koşuda kullanılan', used, true)}
+        {kv('Optimizasyonda kullanılan', used, true)}
       </div>
       <div className="stack-m measure">
         <div className="stack-s"><span className="lbl">Agent ne buldu</span><span>{finding.found}</span></div>

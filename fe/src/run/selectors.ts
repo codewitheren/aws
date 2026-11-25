@@ -21,8 +21,8 @@ export type FindingState =
   | { kind: 'resolved'; resolution: ApprovalResolution; runCompleted: boolean };
 
 /**
- * Bir bulgunun bu oturumdaki son koşudaki durumu. Yalnızca bulgunun ait olduğu
- * merkez ve transfer tipiyle yapılan koşu dikkate alınır; başarısız koşu sayılmaz.
+ * Bir bulgunun bu oturumdaki son optimizasyondaki durumu. Yalnızca bulgunun ait olduğu
+ * merkez ve transfer tipiyle yapılan optimizasyon dikkate alınır; başarısız optimizasyon sayılmaz.
  */
 export function findingState(
   run: RunState | null,

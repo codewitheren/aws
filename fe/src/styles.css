@@ -121,7 +121,7 @@ table.t{width:100%;border-collapse:collapse;font-size:13px}
 .pick-tip > span{display:flex;flex-direction:column}
 .pick-tip .tip-name{flex:1 1 150px;font-weight:600}
 
-/* Koşu durumu */
+/* Optimizasyon durumu */
 .steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:16px}
 .step{display:flex;gap:12px;align-items:flex-start}
 .dot{flex:none;width:22px;height:22px;border-radius:50%;margin-top:1px;background:var(--surface);border:2px solid var(--line);display:grid;place-items:center}

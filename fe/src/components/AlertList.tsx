@@ -34,7 +34,7 @@ export function AlertList({ alerts }: { alerts: ResultAlert[] }) {
       </div>
       <div id="u-panel" role="tabpanel" aria-labelledby={'ut-' + level}>
         {list.length === 0 ? (
-          <p className="sub">Bu koşuda uyarı yok.</p>
+          <p className="sub">Bu optimizasyonda uyarı yok.</p>
         ) : (
           <ul className="alerts" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
             {shown.map((a, i) => (

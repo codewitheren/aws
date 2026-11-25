@@ -1,7 +1,7 @@
 /**
- * Canlı koşu verisini ekran tiplerine çevirir. Kaynak: backend `status` özeti, `view` (depo tablosu,
+ * Canlı optimizasyon verisini ekran tiplerine çevirir. Kaynak: backend `status` özeti, `view` (depo tablosu,
  * kesinti nedenleri, öneri kontrol kartları, tam gönderim doluluğu) ve `depot` (tek depo kanıtı).
- * Geçmiş koşu arşivi olmadığı için trend, düne göre fark ve kaldıraçlar boş bırakılır; örnek rakam gösterilmez.
+ * Geçmiş optimizasyon arşivi olmadığı için trend, düne göre fark ve kaldıraçlar boş bırakılır; örnek rakam gösterilmez.
  */
 import { fetchDepot, fetchView, liveRun, restored, TYPE_LABEL, type LiveRun } from '../agent/agentcore';
 import { formatDateWithWeekday, forecastName as fx, nf } from '../lib/format';
@@ -30,7 +30,7 @@ interface DepotEntry {
   urunler?: { urun: string; oneri: number; final: number; kesilen: number; neden: string }[];
 }
 
-const NO_RUN = 'Henüz tamamlanmış bir koşu yok. Koşu ekranında merkez ve transfer tipini seçip Hesapla\'ya basın.';
+const NO_RUN = 'Henüz tamamlanmış bir optimizasyon yok. Optimizasyon ekranında merkez ve transfer tipini seçip Hesapla\'ya basın.';
 
 async function requireRun(): Promise<LiveRun> {
   await restored();
@@ -82,7 +82,7 @@ export const MERKEZLER: MerkezOption[] = ['Maltepe', 'İzmir', 'Adana', 'Arnavut
   ad,
   tipler: (['amb', 'c4', 'ms'] as const)
     .filter((id) => !(ad === 'Diyarbakır' && id === 'ms'))
-    .map((id) => ({ id, ad: TYPE_LABEL[id], relexAt: null, relexNote: 'Koşuda Google Sheet\'ten okunur', lineCount: null, ranAt: null })),
+    .map((id) => ({ id, ad: TYPE_LABEL[id], relexAt: null, relexNote: 'Optimizasyonda Google Sheet\'ten okunur', lineCount: null, ranAt: null })),
   note: ad === 'Diyarbakır' ? "Diyarbakır'da Meyve-Sebze transferi yok." : undefined,
 }));
 
@@ -94,7 +94,7 @@ export async function getResults(): Promise<ResultsData> {
   const top = depotRows(v).filter((r) => r.oneri > 0).sort((a, b) => b.pct - a.pct)[0];
   return {
     context: contextOf(run),
-    headline: `${s.center} ${TYPE_LABEL[run.transferType]} koşusu hazır: ${nf(s.suggested)} öneri satırı, ${nf(s.sent)} satır gönderiliyor.`
+    headline: `${s.center} ${TYPE_LABEL[run.transferType]} optimizasyonu hazır: ${nf(s.suggested)} öneri satırı, ${nf(s.sent)} satır gönderiliyor.`
       + (s.cut.kg !== undefined ? ` Dökmede (kg) kısma %${nf(s.cut.kg, 1)}.` : ''),
     suggestedLines: s.suggested,
     sentLines: s.sent,
@@ -121,13 +121,13 @@ export async function getAnomalies(): Promise<AnomalyData> {
   const v = await view(run);
   const reviewed = run.findings.map((f) => [
     f.depot, f.product, f.domain, f.current, f.median, f.proposed,
-    run.changes[String(f.row)] !== undefined ? `Koşuda ${nf(run.changes[String(f.row)])} olarak uygulandı` : 'Olduğu gibi bırakıldı',
+    run.changes[String(f.row)] !== undefined ? `Optimizasyonda ${nf(run.changes[String(f.row)])} olarak uygulandı` : 'Olduğu gibi bırakıldı',
   ]);
   const cards = [
     ...(reviewed.length ? [{
       title: 'Aykırı PL önerileri (agent incelemesi)',
-      subtitle: 'Aynı ürün, aynı depo tipinde IQR üst sınırını aşan öneriler ve koşudaki kararınız.',
-      columns: ['Depo', 'Ürün', 'Depo tipi', 'Öneri', 'Medyan', 'Agent önerisi', 'Koşu durumu'],
+      subtitle: 'Aynı ürün, aynı depo tipinde IQR üst sınırını aşan öneriler ve optimizasyondaki kararınız.',
+      columns: ['Depo', 'Ürün', 'Depo tipi', 'Öneri', 'Medyan', 'Agent önerisi', 'Optimizasyon durumu'],
       rows: reviewed,
     }] : []),
     ...v.kartlar.map((k) => ({ title: fx(k.baslik), subtitle: fx(k.alt ?? ''), columns: k.tablo.kolonlar.map(fx), rows: k.tablo.satirlar })),
@@ -151,11 +151,11 @@ export async function getTrend(): Promise<TrendData> {
   const usage = line ? Math.round((line.deger / line.limit) * 100) : null;
   return {
     context: contextOf(run),
-    rangeLabel: `bugünkü koşu (${contextOf(run).dateLabel})`,
+    rangeLabel: `bugünkü optimizasyon (${contextOf(run).dateLabel})`,
     history: null,
     todayReasons: v.nedenler.map((n) => ({ label: fx(n.ad), pct: n.pay, reason: reasonGroup(n.ad) })),
     topCut,
-    limitNote: s.limits.map((l) => `${l.ad}: ${nf(l.deger)} / ${nf(l.limit)} ${l.birim}`).join(' · ') + ' · diğer merkez ve tipler için o koşuyu çalıştırın',
+    limitNote: s.limits.map((l) => `${l.ad}: ${nf(l.deger)} / ${nf(l.limit)} ${l.birim}`).join(' · ') + ' · diğer merkez ve tipler için o optimizasyonu çalıştırın',
     limits: [{ merkez: run.merkez, amb: null, c4: null, ms: null, [run.transferType]: usage }],
   };
 }
@@ -215,7 +215,7 @@ export async function getDepotDetail(id: string): Promise<{ detail: DepotDetail 
       explanation: {
         headline: main
           ? `${id} önerinin %${nf(row.pct, 1)} kadarını alamadı. En büyük kesinti nedeni: ${main.ad}.`
-          : `${id} için bu koşuda kesinti yok.`,
+          : `${id} için bu optimizasyonda kesinti yok.`,
         body: `Öneri ${nf(row.oneri)}, gönderilen ${nf(row.final)}, kesilen ${nf(row.kesilen)} adet.`
           + (e.rozetler?.length ? ' ' + e.rozetler.map((r) => r.metin).join(' · ') + '.' : ''),
         recommendation: 'Nedeni ve ne yapılabileceğini Sonuçlar ekranında agent\'a sorabilirsiniz; agent bu deponun motor kanıtıyla yanıtlar.',

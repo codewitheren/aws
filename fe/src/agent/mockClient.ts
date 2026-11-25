@@ -15,7 +15,7 @@ import { CHECK_ORDER } from './types';
 type Timer = ReturnType<typeof setTimeout>;
 
 const HOW_APPLIED =
-  'Yalnızca bu koşuda, kesim motorundan önce. Forecast kaydı değişmez; satır anomali listesine "koşuda düzeltildi" notuyla girer.';
+  'Yalnızca bu optimizasyonda, kesim motorundan önce. Forecast kaydı değişmez; satır anomali listesine "optimizasyonda düzeltildi" notuyla girer.';
 
 function newId(prefix: string): string {
   return prefix + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 8);
@@ -169,8 +169,8 @@ class MockRun {
         runId,
         summary: {
           headline: this.sample
-            ? `Koşu hazır. ${count('kritik')} kritik, ${count('uyari')} uyarı var.`
-            : 'Koşu tamamlandı (örnek akış). Bu merkez ve tip için örnek sonuç verisi yok.',
+            ? `Optimizasyon hazır. ${count('kritik')} kritik, ${count('uyari')} uyarı var.`
+            : 'Optimizasyon tamamlandı (örnek akış). Bu merkez ve tip için örnek sonuç verisi yok.',
           counts: { kritik: count('kritik'), uyari: count('uyari'), bilgi: count('bilgi') },
           corrections: { applied, unchanged: this.resolutions.length - applied },
           finishedAt: new Date().toISOString(),
@@ -234,7 +234,7 @@ export function createMockAgentClient(): AgentClient {
 
     async respondToApproval(command) {
       const run = runs.get(command.runId);
-      if (!run) throw new Error('Koşu bulunamadı.');
+      if (!run) throw new Error('Optimizasyon bulunamadı.');
       run.respond(command.approvalId, command.response);
     },
 
