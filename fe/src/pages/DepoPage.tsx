@@ -1,3 +1,4 @@
+import { config } from '../config';
 import { dataApi } from '../data/api';
 import type { DepotDetail, LeverRow } from '../data/types';
 import { nf, pct } from '../lib/format';
@@ -38,13 +39,13 @@ function NoData({ name }: { name: string | null }) {
       <section className="card" aria-labelledby="nd">
         <h2 id="nd">Bu depo için detay verisi yok</h2>
         <p className="measure">
-          {name ? `${name} için` : 'Bu adres için'} gösterilecek depo detayı bulunmuyor. Örnek veride yalnızca Göztepe ve Kavacık için detay var;
-          başka bir deponun verisini bu adla göstermiyoruz.
+          {name ? `${name} için` : 'Bu adres için'} gösterilecek depo detayı bulunmuyor.{' '}
+          {config.agentMode === 'agentcore' ? 'Depo bu koşunun öneri listesinde yok.' : 'Örnek veride yalnızca Göztepe ve Kavacık için detay var; başka bir deponun verisini bu adla göstermiyoruz.'}
         </p>
         <div className="inline">
           <Link className="btn btn-p" to={paths.depolar}>Depo listesine dön</Link>
-          <Link className="btn" to={paths.depo('goztepe')}>Göztepe detayı</Link>
-          <Link className="btn" to={paths.depo('kavacik')}>Kavacık detayı</Link>
+          {config.agentMode !== 'agentcore' && <Link className="btn" to={paths.depo('goztepe')}>Göztepe detayı</Link>}
+          {config.agentMode !== 'agentcore' && <Link className="btn" to={paths.depo('kavacik')}>Kavacık detayı</Link>}
         </div>
       </section>
     </>
@@ -197,6 +198,33 @@ function Detail({ d }: { d: DepotDetail }) {
             </section>
           )}
         </div>
+      )}
+
+      {d.ledger && d.ledger.length > 0 && (
+        <section className="card" aria-labelledby="g10">
+          <div className="stack-s">
+            <h2 id="g10">Motorun hesabı</h2>
+            <span className="sub">Kapasite, TIR ve limit adımları; kesimin hangi kısıttan geldiğini gösterir.</span>
+          </div>
+          <div className="grid-auto" style={{ gap: 20, ['--min' as string]: '300px' }}>
+            {d.ledger.map((s) => (
+              <div className="tw" key={s.section}>
+                <table className="t">
+                  <caption className="lbl" style={{ textAlign: 'left' }}>{s.section}</caption>
+                  <tbody>
+                    {s.rows.map((r, i) => (
+                      <tr key={i}>
+                        <td style={{ width: 20 }}>{r.op}</td>
+                        <th scope="row" style={{ fontWeight: r.op === '=' ? 600 : 400 }}>{r.label}{r.note && <span className="sub"> · {r.note}</span>}</th>
+                        <td className="n">{r.value}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))}
+          </div>
+        </section>
       )}
 
       {d.levers && (

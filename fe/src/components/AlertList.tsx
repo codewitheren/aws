@@ -17,8 +17,8 @@ export function AlertList({ alerts }: { alerts: ResultAlert[] }) {
         </div>
       </div>
       <ul className="alerts" style={{ listStyle: 'none', margin: 0, padding: 0 }}>
-        {alerts.map((a) => (
-          <li key={a.title}>
+        {alerts.map((a, i) => (
+          <li key={i}>
             <Link to={a.link.route} className="alert-row">
               <span className="lvl"><LevelChip level={a.level} /></span>
               <span className="a-title">

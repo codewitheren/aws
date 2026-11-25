@@ -1,6 +1,7 @@
 import { dataApi } from '../data/api';
 import { anomalyCsv } from '../data/exports';
-import type { AnomalyData } from '../data/types';
+import { downloadRunFile } from '../agent/agentcore';
+import type { AnomalyCard, AnomalyData } from '../data/types';
 import { downloadBlob, toCsvBlob } from '../lib/download';
 import { nf } from '../lib/format';
 import { useResource } from '../lib/useResource';
@@ -21,7 +22,62 @@ export function AnomaliPage() {
   );
 }
 
+const cell = (v: string | number | null) => (typeof v === 'number' ? nf(v, v % 1 ? 1 : 0) : v ?? '');
+
+/** Canlı koşu: motorun öneri kontrol kartları, her biri kendi tablosuyla. */
+function LiveAnomalies({ data, cards }: { data: AnomalyData; cards: AnomalyCard[] }) {
+  const download = () => void downloadRunFile('anomaliler.csv').catch(() => undefined);
+  return (
+    <>
+      <ResultsHeader context={data.context} active="anomaliler" anomalyTotal={data.total}
+        action={<button type="button" className="btn" onClick={download}>Anomali listesini indir (.csv)</button>} />
+      <section aria-label="Anomali türleri" className="grid-auto" style={{ ['--min' as string]: '240px' }}>
+        {data.categories.map((c) => (
+          <div className="card kpi" key={c.label}>
+            <span className="lbl">{c.label}</span>
+            <span className="big">{nf(c.count)} satır</span>
+          </div>
+        ))}
+        {cards.length === 0 && <p className="sub">Bu koşuda öneri kontrolü bulgusu yok.</p>}
+      </section>
+      {cards.map((c, i) => {
+        const depot = c.columns.indexOf('Depo');
+        return (
+          <section className="card" key={c.title} aria-labelledby={'ac' + i}>
+            <div className="stack-s">
+              <h2 id={'ac' + i}>{c.title}</h2>
+              {c.subtitle && <span className="sub">{c.subtitle}</span>}
+            </div>
+            <div className="tw">
+              <table className="t">
+                <thead><tr>{c.columns.map((h) => <th scope="col" key={h}>{h}</th>)}</tr></thead>
+                <tbody>
+                  {c.rows.slice(0, 200).map((r, j) => (
+                    <tr key={j}>
+                      {r.map((v, k) => (
+                        <td key={k} className={typeof v === 'number' ? 'n' : undefined}>
+                          {k === depot && v ? <Link to={paths.depo(String(v))}>{String(v)}</Link> : cell(v)}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            {c.rows.length > 200 && <p className="sub">İlk 200 satır gösteriliyor; tamamı anomali CSV'sinde.</p>}
+          </section>
+        );
+      })}
+    </>
+  );
+}
+
 function Anomalies({ data }: { data: AnomalyData }) {
+  if (data.cards) return <LiveAnomalies data={data} cards={data.cards} />;
+  return <SampleAnomalies data={data} />;
+}
+
+function SampleAnomalies({ data }: { data: AnomalyData }) {
   const { state } = useRunStore();
   const resolutions = runMatches(state.run, data.context.merkez, data.context.transferType) ? state.run?.resolutions ?? [] : [];
   const download = () => {

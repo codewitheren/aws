@@ -10,11 +10,13 @@ export interface StreamHandle {
  * Taşıma hataları istisna olarak değil `run_failed` / `chat_failed` olayı olarak bildirilir.
  */
 export interface AgentClient {
-  readonly mode: 'mock' | 'http';
+  readonly mode: 'mock' | 'agentcore';
   /** Koşuyu başlatır; olaylar `onEvent` ile akar. İlk olay `run_started`'dır. */
   startRun(command: StartRunCommand, onEvent: (event: RunEvent) => void): StreamHandle;
   /** Bekleyen onaya yanıt verir. Sonuç, koşu akışında `approval_resolved` olarak gelir. */
   respondToApproval(command: RespondToApprovalCommand): Promise<void>;
   /** "Agent'a sor": yanıt parça parça `chat_delta` olarak akar. */
   ask(command: AskCommand, onEvent: (event: ChatEvent) => void): StreamHandle;
+  /** Varsa: bu sekmedeki son koşuyu geri yükler; olaylar `run_started` ile başlar. */
+  resume?(onEvent: (event: RunEvent) => void): StreamHandle | null;
 }

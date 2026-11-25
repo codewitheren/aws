@@ -41,7 +41,10 @@ function RunNote({ run, data }: { run: RunState | null; data: ResultsData }) {
   if (run.status === 'completed') {
     return (
       <p style={{ fontSize: 13 }}>
-        Bu koşuda {run.resolutions.length > 0 ? correctionSentence(run.resolutions) : 'agent düzeltme önermedi.'} Düzeltmeler yalnızca bu koşunun çıktısına uygulandı; Relex'te kayıt değişmedi.
+        Bu koşuda {run.resolutions.length > 0 ? correctionSentence(run.resolutions)
+          : run.summary && run.summary.corrections.applied + run.summary.corrections.unchanged > 0
+            ? `${run.summary.corrections.applied} düzeltme uygulandı, ${run.summary.corrections.unchanged} öneri olduğu gibi bırakıldı.`
+            : 'agent düzeltme önermedi.'} Düzeltmeler yalnızca bu koşunun çıktısına uygulandı; Relex'te kayıt değişmedi.
       </p>
     );
   }
@@ -52,7 +55,8 @@ function Summary({ data, anomalies }: { data: ResultsData; anomalies: AnomalyDat
   const { state } = useRunStore();
   const run = state.run;
   const sampleRun = runMatches(run, data.context.merkez, data.context.transferType) ? run : null;
-  const limitPct = Math.round((data.lineLimit.used / data.lineLimit.limit) * 100);
+  const limit = data.lineLimit;
+  const limitPct = limit ? Math.round((limit.used / limit.limit) * 100) : 0;
   const points = (n: number) => (n > 0 ? '+' : '') + nf(n, 1) + ' puan';
 
   return (
@@ -72,23 +76,28 @@ function Summary({ data, anomalies }: { data: ResultsData; anomalies: AnomalyDat
         <div className="card kpi"><span className="lbl">C/P</span><span className="big">{pct(data.cpPct, 1)}</span><span className="sub">Gönderilen / önerilen satır</span></div>
         <div className="card kpi">
           <span className="lbl">Kısma oranı</span><span className="big">{pct(data.cutPct, 1)}</span>
-          <span className="sub">Düne göre <strong style={{ color: 'var(--text)' }}>{points(data.cutDelta.vsYesterday)}</strong></span>
-          <span className="sub">Geçen pazartesiye göre <strong style={{ color: 'var(--text)' }}>{points(data.cutDelta.vsLastWeekday)}</strong></span>
+          {data.cutDelta ? (
+            <>
+              <span className="sub">Düne göre <strong style={{ color: 'var(--text)' }}>{points(data.cutDelta.vsYesterday)}</strong></span>
+              <span className="sub">Geçen pazartesiye göre <strong style={{ color: 'var(--text)' }}>{points(data.cutDelta.vsLastWeekday)}</strong></span>
+            </>
+          ) : <span className="sub">Gönderilmeyen miktar / öneri</span>}
         </div>
+        {limit && (
         <div className="card kpi">
           <span className="lbl">Merkez satır limiti kullanımı</span><span className="big">{pct(limitPct)}</span>
           <div className="track" role="img" aria-label={`Limitin yüzde ${limitPct}'ü kullanıldı`}>
             <div style={{ width: Math.min(limitPct, 100) + '%', background: limitPct >= 90 ? 'var(--uyari-mark)' : 'var(--brand)' }} />
           </div>
-          <span className="sub">{nf(data.lineLimit.used)} / {nf(data.lineLimit.limit)} created satır</span>
+          <span className="sub">{nf(limit.used)} / {nf(limit.limit)} created satır</span>
         </div>
+        )}
       </section>
 
       <div className="cols">
         <div className="stack" style={{ flex: '2 1 560px' }}>
           <AlertList alerts={data.alerts} />
           <FilesCard
-            runId={run?.status === 'completed' ? run.context?.runId ?? null : null}
             sentLines={data.sentLines}
             anomalyFile={anomalyCsv(anomalies, sampleRun?.resolutions ?? [])}
             alertsFile={alertsCsv(data)}

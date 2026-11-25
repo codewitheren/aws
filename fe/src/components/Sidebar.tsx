@@ -1,5 +1,6 @@
 import { Link, paths, type Route } from '../router/router';
 import type { Theme } from '../theme/theme';
+import { logout } from './LoginGate';
 
 const NAV: { key: string; label: string; to: string; match: Route['name'][] }[] = [
   { key: 'kosu', label: 'Koşu', to: paths.kosu, match: ['kosu'] },
@@ -12,7 +13,7 @@ interface Props {
   route: Route;
   theme: Theme;
   onToggleTheme: () => void;
-  mode: 'mock' | 'http';
+  mode: 'mock' | 'agentcore';
 }
 
 export function Sidebar({ route, theme, onToggleTheme, mode }: Props) {
@@ -38,8 +39,11 @@ export function Sidebar({ route, theme, onToggleTheme, mode }: Props) {
         <button type="button" className="btn btn-sm" onClick={onToggleTheme} aria-pressed={theme === 'dark'}>
           Koyu tema
         </button>
+        {mode === 'agentcore' && (
+          <button type="button" className="btn btn-sm" onClick={() => void logout()}>Çıkış yap</button>
+        )}
         <span className="sub">
-          {mode === 'mock' ? 'Örnek veri · mock agent' : 'Agent: canlı · ekran verisi örnek'}
+          {mode === 'mock' ? 'Örnek veri · mock agent' : 'Canlı · AgentCore'}
         </span>
       </div>
     </nav>

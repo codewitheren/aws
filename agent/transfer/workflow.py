@@ -124,10 +124,39 @@ def finish(root, job):
     summary = dict(center=job["center"], date=job["date"], kind=kind, suggested=suggested, sent=sent,
                    cp=round(100*sent/suggested,2) if suggested else None, cut=rates, limits=limits,
                    alerts=alerts, applied=len(job["changes"]), reviewed=len(findings))
+    depots = report["detay"]["depolar"]
+    lines = report["detay"]
+    cols = lines["kolonlar"]
+    pick = [cols.index(c) for c in ("Depo", "Ürün", "Öneri", "Final", "Kesilen", "Neden")]
+    per_depot = {}
+    # MS depot table counts units only; bulk (Dökme) rows are in kg and stay out, as in depo_tablo.
+    kind_col = cols.index("Tür") if "Tür" in cols else None
+    for values in lines["satirlar"]:
+        if kind_col is not None and values[kind_col] == "Dökme":
+            continue
+        depot, product, suggested, final, cut, reason = (values[i] for i in pick)
+        if cut and cut > 0:
+            per_depot.setdefault(str(depot), []).append((product, suggested, final, cut, reason))
+    for depot, rows in per_depot.items():
+        entry = depots.setdefault(depot, {})
+        reasons = {}
+        for *_, cut, reason in rows:
+            reasons[reason or "Diğer"] = reasons.get(reason or "Diğer", 0) + cut
+        entry["nedenler"] = [{"ad": k, "kes": v} for k, v in sorted(reasons.items(), key=lambda x: -x[1])]
+        top = sorted(rows, key=lambda r: -r[3])[:10]
+        entry["urunler"] = [dict(urun=p, oneri=s, final=f, kesilen=c, neden=r) for p, s, f, c, r in top]
+    def full_fill(entry):
+        # Doluluk if everything proposed had been sent, worst cabinet first.
+        rates = [100 * sum(d.get(k) or 0 for k in ("dolu", "fin", "kes")) / d["tavan"]
+                 for d in entry.get("doluluk", []) if d.get("birim") == "L" and d.get("tavan")]
+        return round(max(rates), 1) if rates else None
+    fills = {name: full_fill(entry) for name, entry in depots.items()}
+    view = dict(doluluk={k: v for k, v in fills.items() if v is not None}, tablo=report["depo_tablo"], nedenler=report["ozet"]["nedenler"],
+                kartlar=report["oneri"].get("kartlar", []), sayi=report["oneri"].get("sayi", 0))
     files = {"transfer.xlsx":result["excel"],"transfer.parquet":result["parquet"],"allpl.parquet":result["allpl_parquet"],
              "allpl.xlsx":result["allpl_xlsx"],"sonuc.json":str(report_path),"uyarilar.csv":str(root/"uyarilar.csv"),
              "anomaliler.csv":str(root/"anomaliler.csv")}
-    return dict(summary=summary, files=files, depots=report["detay"]["depolar"])
+    return dict(summary=summary, files=files, depots=depots, view=view)
 
 
 def main():

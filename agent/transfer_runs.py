@@ -95,6 +95,16 @@ def dispatch(actor, session, payload):
             raise ValueError("Dosya bulunamadı.")
         return {"url":client.generate_presigned_url("get_object", Params={"Bucket":bucket,
                 "Key":state["artifacts"]+"/"+name,"ResponseContentDisposition":f'attachment; filename="{name}"'}, ExpiresIn=300)}
+    if action in {"view", "depot"}:
+        if not state or state["stage"] != "ready":
+            raise ValueError("Önce koşuyu tamamlayın.")
+        if action == "view":
+            return read_json(client, bucket, state["artifacts"]+"/view.json")[0]
+        name = payload.get("name")
+        depots = read_json(client, bucket, state["artifacts"]+"/depots.json")[0]
+        if not isinstance(name, str) or name not in depots:
+            raise ValueError("Depo bu koşuda bulunamadı.")
+        return {"depo": name, **depots[name]}
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
         attempt = prefix + "/" + uuid4().hex
@@ -124,6 +134,7 @@ def dispatch(actor, session, payload):
             for name,path in result["files"].items():
                 client.upload_file(path,bucket,attempt+"/"+name)
             client.put_object(Bucket=bucket, Key=attempt+"/depots.json",Body=json.dumps(result["depots"]).encode())
+            client.put_object(Bucket=bucket, Key=attempt+"/view.json",Body=json.dumps(result["view"]).encode())
             state.update(stage="ready", artifacts=attempt, summary=result["summary"], changes=changes)
         else:
             raise ValueError("Bu işlem için geçerli bir koşu gerekli.")

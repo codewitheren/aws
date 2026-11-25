@@ -35,6 +35,23 @@ export function RunProvider({ client, children }: { client: AgentClient; childre
     chatHandle.current?.abort();
   }, []);
 
+  // Sayfa yenilenince bu sekmedeki son koşuyu geri yükle (yalnızca AgentCore istemcisinde var).
+  useEffect(() => {
+    if (!client.resume) return;
+    const token = ++runToken.current;
+    let requested = false;
+    const handle = client.resume((event) => {
+      if (token !== runToken.current) return;
+      if (event.type === 'run_started' && !requested) {
+        requested = true;
+        dispatch({ type: 'run_requested', selection: { merkez: event.run.merkez, transferType: event.run.transferType } });
+      }
+      if (requested) dispatch({ type: 'run_event', event });
+    });
+    runHandle.current = handle;
+    return () => handle?.abort();
+  }, [client]);
+
   const select = useCallback((selection: Selection) => dispatch({ type: 'select', selection }), []);
 
   const startRun = useCallback(() => {

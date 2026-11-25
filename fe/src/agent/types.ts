@@ -20,7 +20,7 @@ export interface RunContext {
   runDate: string;
 }
 
-export type ApprovalOptionId = 'accept' | 'accept_all_remaining' | 'reject';
+export type ApprovalOptionId = 'accept' | 'accept_all_remaining' | 'reject' | 'reject_all_remaining';
 
 export interface ApprovalOption {
   id: ApprovalOptionId;
@@ -120,6 +120,7 @@ export type ApprovalResponse =
   | { kind: 'accept' }
   | { kind: 'reject' }
   | { kind: 'accept_all_remaining' }
+  | { kind: 'reject_all_remaining' }
   | { kind: 'instruction'; text: string };
 
 export interface RespondToApprovalCommand {

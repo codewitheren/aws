@@ -57,6 +57,7 @@ function resolve(o: SampleOutlier, response: ApprovalResponse, decidedBy: Approv
     case 'accept_all_remaining':
       return { ...base, outcome: { kind: 'applied', value: o.median, method: 'median' }, summary: medianSummary(o) };
     case 'reject':
+    case 'reject_all_remaining':
       return { ...base, outcome: { kind: 'unchanged', reason: 'rejected' }, summary: unchangedSummary(o) };
     case 'instruction': {
       const { outcome, summary } = interpretInstruction(response.text, o);

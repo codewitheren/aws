@@ -52,7 +52,10 @@ export function RunStatusPanel({ run, title, announcement, responding, responseE
                 <span className="sub">{statusText(s)}</span>
                 {id === 'outlier_review' && run && run.resolutions.length > 0 && (
                   <ul className="mini-list" aria-label="Verdiğiniz kararlar">
-                    {run.resolutions.map((r) => (
+                    {run.resolutions.length > 20 && (
+                      <li><span className="sub">İlk {run.resolutions.length - 20} karar gizlendi; tamamı anomali listesinde.</span></li>
+                    )}
+                    {run.resolutions.slice(-20).map((r) => (
                       <li key={r.approvalId}>
                         <span>{r.title}</span>
                         <span className="sub">{r.summary}{r.note ? ` · “${r.note}”` : ''}</span>

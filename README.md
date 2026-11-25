@@ -4,7 +4,7 @@ Mevcut Cognito ve AgentCore kurulumu üzerinden çalışan Türkçe günlük tra
 
 ## Koşu
 
-- CloudFront özel S3 kovasının `web/` dizinini yayımlar. Aynı alan adındaki `/runtimes/*` çağrıları Cognito erişim belirteciyle AgentCore'a gider.
+- CloudFront özel S3 kovasının `web/` dizinini yayımlar; bu dizine `fe/` React arayüzü `VITE_AGENT_MODE=agentcore` ile derlenip yüklenir (eski `web/` klasörü artık yayımlanmaz). Aynı alan adındaki `/runtimes/*` çağrıları Cognito erişim belirteciyle AgentCore'a gider.
 - `agent/transfer/gsheet_kaynak.py` yapılandırılmış Google Sheet'ten seçili kategorinin sekmelerini okur. Dosya erişimi Runtime ortamından sağlanmalıdır. Koşu tarihi sayım ve teslimat hesaplarının iş tarihidir. Tarih seçimi geçmiş girdi arşivi getirmez.
 - `prepare` girdileri sabitler, merkezi depo kodlarıyla doğrular ve aynı ürün/depo tipinde aykırı önerileri çıkarır. Kullanıcı kararları yalnız çalışma kopyasındaki Effective quantity alanını etkiler. Karara kadar yapılan seçimler aynı tarayıcı sekmesinde tutulur.
 - `finish` Ambient & Su, Cold veya MS motorunu ayrı Python sürecinde çalıştırır. Motorun Excel, parquet, All PL ve sonuc.json çıktıları, uyarı ve anomali CSV dosyaları özel S3 alanına gider. Sonuç kaydı dosyaların tamamı yazılınca yayımlanır.
@@ -26,7 +26,7 @@ export AWS_DEFAULT_REGION=us-east-1
 .venv/bin/python scripts/deploy.py
 ```
 
-Dağıtım, model erişimini denetler, iki CloudFormation yığınını oluşturur veya günceller, ARM64 paketini içerik özetiyle S3'e yükler ve web adresini yazdırır. Yalnızca arayüz değiştiğinde `scripts/deploy.py publish` yeterlidir.
+Dağıtım, model erişimini denetler, iki CloudFormation yığınını oluşturur veya günceller, ARM64 paketini içerik özetiyle S3'e yükler ve web adresini yazdırır. Yalnızca arayüz değiştiğinde `scripts/deploy.py publish` yeterlidir; bu komut `fe/` için `npm run build` çalıştırır (Node.js 18+ gerekir).
 
 İlk giriş için, web yığınının `PoolId` çıktısındaki Cognito kullanıcı havuzunda bir kullanıcı oluştur ve kalıcı parola tanımla. Ardından dağıtımın yazdırdığı web adresinden giriş yap.
 

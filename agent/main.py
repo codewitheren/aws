@@ -47,7 +47,7 @@ async def invoke(payload, context):
         yield {"error": "Geçerli bir kullanıcı ve koşu oturumu gerekli."}
         return
     action = payload.get("action")
-    if isinstance(action, str) and action in {"prepare", "finish", "status", "download", "explain"}:
+    if isinstance(action, str) and action in {"prepare", "finish", "status", "download", "explain", "view", "depot"}:
         key = (actor, session)
         writing = action in {"prepare", "finish"}
         if writing and key in active_runs:

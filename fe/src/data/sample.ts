@@ -191,11 +191,7 @@ function buildTrend(): TrendData {
   return {
     context: SAMPLE_CONTEXT,
     rangeLabel: 'son 30 gün (25.10 – 23.11.2026)',
-    days: DAYS,
-    cutRatio: ratio,
-    band: { low: 36, high: 46 },
-    reasons,
-    heat,
+    history: { days: DAYS, cutRatio: ratio, band: { low: 36, high: 46 }, reasons, heat },
     topCut: top.map(([ad, pct, reason]) => ({ depotId: slugify(ad), ad, pct, reason })),
     limitNote: 'Created satır / limit · Ambient 10.000 · +4 6.900 · Meyve-Sebze 10.000',
     limits: [
@@ -381,7 +377,7 @@ export const DEPOT_DETAILS: Record<string, DepotDetail> = { goztepe: GOZTEPE, ka
 export const KNOWN_DEPOTS: Record<string, string> = Object.fromEntries(
   [
     ...DEPOTS.rows.map((r) => r.ad),
-    ...TREND.heat.map((r) => r.ad),
+    ...(TREND.history?.heat ?? []).map((r) => r.ad),
     ...TREND.topCut.map((r) => r.ad),
     ...ANOMALIES.outliers.map((r) => r.ad),
   ].map((ad) => [slugify(ad), ad]),

@@ -24,6 +24,8 @@ export interface TransferTypeOption {
   /** Relex girdisinin geldiği saat; gelmediyse null (tip seçilemez). */
   relexAt: string | null;
   lineCount: number | null;
+  /** Saat bilinmiyorsa gösterilecek açıklama; varsa tip seçilebilir. */
+  relexNote?: string;
   /** Bugün daha önce koşulduysa saati. */
   ranAt: string | null;
 }
@@ -52,8 +54,9 @@ export interface ResultsData {
   sentLines: number;
   cpPct: number;
   cutPct: number;
-  cutDelta: { vsYesterday: number; vsLastWeekday: number };
-  lineLimit: { used: number; limit: number };
+  /** Geçmiş koşu verisi yoksa null. */
+  cutDelta: { vsYesterday: number; vsLastWeekday: number } | null;
+  lineLimit: { used: number; limit: number } | null;
   alerts: ResultAlert[];
   anomalyTotal: number;
   chatSuggestions: string[];
@@ -74,10 +77,20 @@ export interface AnomalyOutlier {
   note: string;
 }
 
+/** Motorun öneri kontrol kartı (canlı koşu). */
+export interface AnomalyCard {
+  title: string;
+  subtitle: string;
+  columns: string[];
+  rows: (string | number | null)[][];
+}
+
 export interface AnomalyData {
   context: SampleContext;
   total: number;
   categories: AnomalyCategory[];
+  /** Canlı koşuda motorun kontrol tabloları; varsa tek ürün grafiği yerine gösterilir. */
+  cards?: AnomalyCard[];
   product: string;
   median: number;
   upperBound: number;
@@ -116,15 +129,22 @@ export interface LimitUsageRow {
   ms: number | null;
 }
 
-export interface TrendData {
-  context: SampleContext;
-  rangeLabel: string;
+export interface TrendHistory {
   /** "25.10" biçiminde 30 gün. */
   days: string[];
   cutRatio: number[];
   band: { low: number; high: number };
   reasons: DayReasons[];
   heat: HeatRow[];
+}
+
+export interface TrendData {
+  context: SampleContext;
+  rangeLabel: string;
+  /** Geçmiş koşu arşivi yoksa null; ekran yalnızca bugünü gösterir. */
+  history: TrendHistory | null;
+  /** Bugünkü koşunun kesinti nedenleri (kesilen miktarın payı). */
+  todayReasons?: { label: string; pct: number; reason: CutReason }[];
   topCut: TopCutDepot[];
   limitNote: string;
   limits: LimitUsageRow[];
@@ -155,6 +175,8 @@ export interface DepotsData {
   rows: DepotListRow[];
   /** Sağdaki özet kartında gösterilen depo. */
   featuredDepotId: string;
+  /** Sol üst bölgenin adı: dolap boşken kısmanın kaynağı (Ambient'te TIR/palet). */
+  constraintLabel?: string;
 }
 
 // ---- Depo detayı ----
@@ -232,4 +254,6 @@ export interface DepotDetail {
   topProducts: TopCutProduct[] | null;
   trend: { depot: number[]; merkez: number[]; days: string[] } | null;
   levers: LeverRow[] | null;
+  /** Motorun hesap defteri: limit, mevcut, kesilen adımları. */
+  ledger?: { section: string; rows: { op: string; label: string; note: string; value: string }[] }[];
 }

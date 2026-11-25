@@ -1,5 +1,5 @@
 import { dataApi } from '../data/api';
-import type { TrendData } from '../data/types';
+import type { TrendData, TrendHistory } from '../data/types';
 import { pct } from '../lib/format';
 import { useResource } from '../lib/useResource';
 import { CutReasonsChart } from '../charts/CutReasonsChart';
@@ -7,7 +7,7 @@ import { HeatMap, heatColor } from '../charts/HeatMap';
 import { LimitUsage } from '../charts/LimitUsage';
 import { TopCutBars } from '../charts/TopCutBars';
 import { TrendLineChart } from '../charts/TrendLineChart';
-import { Legend, reasonLegend } from '../components/Legend';
+import { Legend, REASON_COLOR, reasonLegend } from '../components/Legend';
 import { Loadable } from '../components/Loadable';
 
 export function TrendPage() {
@@ -19,23 +19,18 @@ export function TrendPage() {
   );
 }
 
-function Trend({ data }: { data: TrendData }) {
+function History({ h }: { h: TrendHistory }) {
   return (
     <>
-      <header className="page-head">
-        <h1 tabIndex={-1}>Kısma trendi</h1>
-        <p className="sub">{data.context.merkez} · {data.context.transferTypeLabel} · {data.rangeLabel}</p>
-      </header>
-
       <section className="card" aria-labelledby="t1">
         <div className="split">
           <h2 id="t1">Merkez kısma oranı</h2>
           <Legend items={[
-            { label: `Normal bant ${pct(data.band.low)}–${data.band.high}`, swatch: { background: 'var(--band)', border: '1px solid var(--line)' } },
+            { label: `Normal bant ${pct(h.band.low)}–${h.band.high}`, swatch: { background: 'var(--band)', border: '1px solid var(--line)' } },
             { label: 'Bant dışı gün', swatch: { background: 'var(--uyari-mark)', borderRadius: '50%' } },
           ]} />
         </div>
-        <TrendLineChart days={data.days} values={data.cutRatio} band={data.band} />
+        <TrendLineChart days={h.days} values={h.cutRatio} band={h.band} />
       </section>
 
       <section className="card" aria-labelledby="t2">
@@ -43,7 +38,7 @@ function Trend({ data }: { data: TrendData }) {
           <h2 id="t2">Kesinti nedenleri, gün bazında</h2>
           <Legend items={reasonLegend(['kap', 'backlog', 'limit', 'yok'])} />
         </div>
-        <CutReasonsChart days={data.days} reasons={data.reasons} />
+        <CutReasonsChart days={h.days} reasons={h.reasons} />
         <p className="sub">Önerilen miktarın payı. Sütunlar %100'e tamamlanır.</p>
       </section>
 
@@ -57,8 +52,45 @@ function Trend({ data }: { data: TrendData }) {
           </div>
         </div>
         <p className="sub">Kronik sorunlu depolar koyu bir çizgi olarak görünür. Depo adına tıklayınca detay açılır.</p>
-        <HeatMap rows={data.heat} days={data.days} />
+        <HeatMap rows={h.heat} days={h.days} />
       </section>
+    </>
+  );
+}
+
+function Trend({ data }: { data: TrendData }) {
+  return (
+    <>
+      <header className="page-head">
+        <h1 tabIndex={-1}>Kısma trendi</h1>
+        <p className="sub">{data.context.merkez} · {data.context.transferTypeLabel} · {data.rangeLabel}</p>
+      </header>
+
+      {data.history ? <History h={data.history} /> : (
+        <section className="card" aria-labelledby="t0">
+          <h2 id="t0">Geçmiş koşular</h2>
+          <p className="measure">Bu sürümde geçmiş koşu arşivi yok; 30 günlük trend, gün bazında nedenler ve depo × gün ısı haritası arşiv bağlanınca görünür. Aşağıdakiler bugünkü koşunun rakamlarıdır.</p>
+        </section>
+      )}
+
+      {data.todayReasons && data.todayReasons.length > 0 && (
+        <section className="card" aria-labelledby="t6">
+          <div className="split">
+            <h2 id="t6">Bugünkü kesinti nedenleri</h2>
+            <Legend items={reasonLegend(['kap', 'backlog', 'limit'])} />
+          </div>
+          <ol style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {data.todayReasons.map((r) => (
+              <li key={r.label} className="hbar">
+                <span className="h-name">{r.label}</span>
+                <span className="h-area" aria-hidden="true"><span style={{ width: r.pct + '%', background: REASON_COLOR[r.reason] }} /></span>
+                <span className="h-val">{pct(r.pct, 1)}</span>
+              </li>
+            ))}
+          </ol>
+          <p className="sub">Kesilen miktarın nedenlere göre payı.</p>
+        </section>
+      )}
 
       <div className="cols">
         <section className="card" aria-labelledby="t4" style={{ flex: '3 1 520px' }}>

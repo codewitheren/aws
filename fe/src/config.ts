@@ -1,15 +1,6 @@
-export type AgentMode = 'mock' | 'http';
+export type AgentMode = 'mock' | 'agentcore';
 
-function readMode(raw: string | undefined): AgentMode {
-  return raw === 'http' ? 'http' : 'mock';
-}
-
-function readBaseUrl(raw: string | undefined): string {
-  const value = raw && raw.trim() !== '' ? raw.trim() : '/api';
-  return value.replace(/\/+$/, '');
-}
-
+/** `VITE_AGENT_MODE=agentcore`: Cognito girişi + AgentCore Runtime. Varsayılan: tarayıcı içi mock. */
 export const config = {
-  agentMode: readMode(import.meta.env.VITE_AGENT_MODE),
-  apiBaseUrl: readBaseUrl(import.meta.env.VITE_API_BASE_URL),
+  agentMode: (import.meta.env.VITE_AGENT_MODE === 'agentcore' ? 'agentcore' : 'mock') as AgentMode,
 } as const;

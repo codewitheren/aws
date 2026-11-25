@@ -32,7 +32,7 @@ function KosuForm({ merkezler }: { merkezler: MerkezOption[] }) {
   const sameAsRun = runMatches(run, selection.merkez, selection.transferType);
 
   const pickMerkez = (m: MerkezOption) => {
-    const first = m.tipler.find((t) => t.relexAt) ?? m.tipler[0];
+    const first = m.tipler.find((t) => t.relexAt || t.relexNote) ?? m.tipler[0];
     actions.select({ merkez: m.ad, transferType: first.id });
   };
 
@@ -82,10 +82,10 @@ function KosuForm({ merkezler }: { merkezler: MerkezOption[] }) {
               const ran = ranToday(merkez.ad, t.id, t.ranAt);
               return (
                 <button key={t.id} type="button" className="pick pick-tip" aria-pressed={t.id === tip.id}
-                  disabled={!t.relexAt || (active && t.id !== tip.id)}
+                  disabled={!(t.relexAt || t.relexNote) || (active && t.id !== tip.id)}
                   onClick={() => actions.select({ merkez: merkez.ad, transferType: t.id })}>
                   <span className="tip-name">{t.ad}</span>
-                  <span style={{ flex: '1 1 150px' }}><span className="lbl">Relex girdisi</span><span>{t.relexAt ? 'Geldi · ' + t.relexAt : 'Bekleniyor'}</span></span>
+                  <span style={{ flex: '1 1 150px' }}><span className="lbl">Relex girdisi</span><span>{t.relexAt ? 'Geldi · ' + t.relexAt : t.relexNote ?? 'Bekleniyor'}</span></span>
                   <span style={{ flex: '1 1 110px' }}><span className="lbl">Öneri satırı</span><span>{t.lineCount !== null ? nf(t.lineCount) : '—'}</span></span>
                   <span style={{ flex: '1 1 150px' }}><span className="lbl">Bugün</span><span>{ran ? ran + "'de koşuldu" : 'Koşulmadı'}</span></span>
                 </button>
@@ -99,7 +99,7 @@ function KosuForm({ merkezler }: { merkezler: MerkezOption[] }) {
           <h2 id="s3">3 · Çalıştır</h2>
           <div className="split" style={{ alignItems: 'center', gap: 16 }}>
             <div className="kv"><span className="lbl">Koşu günü</span><strong>Bugün · {formatDateWithWeekday(today)}</strong></div>
-            <button type="button" className="btn btn-p" style={{ minWidth: 160 }} disabled={active || !tip.relexAt} onClick={actions.startRun}>
+            <button type="button" className="btn btn-p" style={{ minWidth: 160 }} disabled={active || !(tip.relexAt || tip.relexNote)} onClick={actions.startRun}>
               {buttonText}
             </button>
           </div>

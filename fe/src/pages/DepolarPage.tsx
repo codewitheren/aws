@@ -78,9 +78,9 @@ function Depots({ data, featured }: { data: DepotsData; featured: DepotDetail | 
       <section className="card" aria-labelledby="d1">
         <div className="stack-s">
           <h2 id="d1">Doluluk – kısma dağılımı</h2>
-          <span className="sub">Sol üstteki depolar dolap boşken kısılıyor: sorun hacim değil, TIR/palet kısıtı.</span>
+          <span className="sub">Sol üstteki depolar dolap boşken kısılıyor: sorun hacim değil, {data.constraintLabel ?? 'TIR/palet kısıtı'}.</span>
         </div>
-        <DepotScatter points={data.points} highlights={data.highlights} />
+        <DepotScatter points={data.points} highlights={data.highlights} constraintLabel={data.constraintLabel} />
         <div className="inline">
           <span className="sub">İşaretli depolar:</span>
           {data.highlights.map((h) => (

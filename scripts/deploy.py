@@ -81,11 +81,19 @@ def publish():
     config = {"region": REGION, "clientId": web["ClientId"], "runtimeArn": arn, "model": MODEL}
     s3.put_object(Bucket=web["Bucket"], Key="web/config.json", Body=json.dumps(config).encode(),
                   ContentType="application/json", CacheControl="no-store")
-    for file in sorted((ROOT/"web").rglob("*"), key=lambda f: f.name == "index.html"):
+    fe = ROOT / "fe"
+    npm = command("npm", ".tools/bin/npm")
+    if not (fe / "node_modules").exists():
+        subprocess.run([npm, "ci"], check=True, cwd=fe)
+    subprocess.run([npm, "run", "build"], check=True, cwd=fe, env={**os.environ, "VITE_AGENT_MODE": "agentcore"})
+    dist = fe / "dist"
+    # Hashed assets first and cached for good; index.html last so it never points at missing files.
+    for file in sorted(dist.rglob("*"), key=lambda f: f.name == "index.html"):
         if file.is_file():
-            s3.upload_file(str(file), web["Bucket"], f"web/{file.relative_to(ROOT / 'web').as_posix()}",
+            hashed = file.parent.name == "assets"
+            s3.upload_file(str(file), web["Bucket"], f"web/{file.relative_to(dist).as_posix()}",
                            ExtraArgs={"ContentType": mimetypes.guess_type(file.name)[0] or "text/plain",
-                                      "CacheControl": "no-store"})
+                                      "CacheControl": "public, max-age=31536000, immutable" if hashed else "no-store"})
     print("https://" + web["Domain"], flush=True)
 
 

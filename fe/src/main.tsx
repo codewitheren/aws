@@ -2,6 +2,8 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createAgentClient } from './agent';
 import { App } from './App';
+import { LoginGate } from './components/LoginGate';
+import { config } from './config';
 import { ensureDefaultRoute } from './router/router';
 import { RunProvider } from './run/RunProvider';
 import { applyTheme, initialTheme } from './theme/theme';
@@ -17,8 +19,16 @@ if (!root) throw new Error('#root bulunamadı');
 
 createRoot(root).render(
   <StrictMode>
-    <RunProvider client={client}>
-      <App />
-    </RunProvider>
+    {config.agentMode === 'agentcore' ? (
+      <LoginGate>
+        <RunProvider client={client}>
+          <App />
+        </RunProvider>
+      </LoginGate>
+    ) : (
+      <RunProvider client={client}>
+        <App />
+      </RunProvider>
+    )}
   </StrictMode>,
 );

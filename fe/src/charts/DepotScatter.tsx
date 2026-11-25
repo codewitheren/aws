@@ -2,7 +2,7 @@ import { nf, pct } from '../lib/format';
 import type { ScatterHighlight } from '../data/types';
 import { paths } from '../router/router';
 
-const x = (fill: number) => 60 + fill * 5.125;
+const x = (fill: number) => 60 + Math.max(0, Math.min(fill, 160)) * 5.125;
 const y = (cut: number) => 410 - cut * 3.9;
 
 /** Etiket noktanın soluna yazılır; grafiğin tepesine yakınsa altına, değilse üstüne. */
@@ -13,10 +13,11 @@ function labelY(cy: number): number {
 interface Props {
   points: [number, number][];
   highlights: ScatterHighlight[];
+  constraintLabel?: string;
 }
 
 /** Tam gönderimde doluluk × kısma oranı. İşaretli depolar detay sayfasına bağlantıdır. */
-export function DepotScatter({ points, highlights }: Props) {
+export function DepotScatter({ points, highlights, constraintLabel = 'TIR/palet kısıtı' }: Props) {
   const describe = (h: ScatterHighlight) => `${h.ad} · ${pct(h.fillPct, h.fillPct % 1 ? 1 : 0)} dolu, ${pct(h.cutPct)} kısma`;
   const label = 'Depoların tam gönderimde doluluğu ve kısma oranı. '
     + highlights.map((h) => `${h.ad}: doluluk yüzde ${nf(h.fillPct, h.fillPct % 1 ? 1 : 0)}, kısma yüzde ${nf(h.cutPct)}.`).join(' ');
@@ -33,7 +34,7 @@ export function DepotScatter({ points, highlights }: Props) {
           {[0, 50, 100, 150].map((v) => <text key={v} x={x(v)} y={430} textAnchor="middle">{pct(v)}</text>)}
           <text x={470} y={458} textAnchor="middle">Tam gönderimde doluluk</text>
           <text x={14} y={215} textAnchor="middle" transform="rotate(-90 14 215)">Kısma oranı</text>
-          <text className="em" x={70} y={38}>Dolap boş ama kısılıyor: TIR/palet kısıtı</text>
+          <text className="em" x={70} y={38}>Dolap boş ama kısılıyor: {constraintLabel}</text>
           <text className="em" x={870} y={38} textAnchor="end">Dolap dolu</text>
           <text className="em" x={70} y={400}>Sağlıklı</text>
           <text className="em" x={870} y={400} textAnchor="end">Doluya yakın</text>

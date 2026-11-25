@@ -53,7 +53,7 @@ export interface StoreState {
 
 export type StoreAction =
   | { type: 'select'; selection: Selection }
-  | { type: 'run_requested' }
+  | { type: 'run_requested'; selection?: Selection }
   | { type: 'run_event'; event: RunEvent }
   | { type: 'respond_started' }
   | { type: 'respond_failed'; message: string }
@@ -181,6 +181,9 @@ export function reducer(state: StoreState, action: StoreAction): StoreState {
     case 'select':
       return isActive(state.run) ? state : { ...state, selection: action.selection };
     case 'run_requested':
+      if (action.selection) {
+        return { ...state, selection: action.selection, run: newRun(action.selection), responding: false, responseError: null };
+      }
       return { ...state, run: newRun(state.selection), responding: false, responseError: null, announcement: 'Koşu başlatılıyor' };
     case 'run_event': {
       const run = state.run;
