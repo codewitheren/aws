@@ -13,13 +13,13 @@ import pandas as pd
 
 import calistir as engine
 import gsheet_kaynak as sheets
-from preflight import (CAMPAIGN, CATEGORIES, finding, grouped_changes, input_checks, parameter_checks,
+from preflight import (CAMPAIGN, CATEGORIES, finding, grouped_changes, input_checks, iqr_outliers, parameter_checks,
                        relex_anomalies, relex_path, volume_load)
 from analytics import compare_scenario, metrics, query
 from scenarios import apply_changes, edit_scenario
 import surucu
 
-ORDER = ("girdi-kontrolu", "parametre-takibi", "relex-anomali", "hacim-yuku")
+ORDER = ("girdi-kontrolu", "parametre-takibi", "relex-anomali", "relex-aykiri", "hacim-yuku")
 
 
 def run_motor(root, snapshot, kind, day, center, label, params=None):
@@ -64,9 +64,16 @@ def prepare(root, job):
     if not any(c["level"] == "hata" for c in checks):
         checks.extend(parameter_checks(snapshot, kind, center, day, relex))
         proposals, notes = relex_anomalies(snapshot, kind, center, day, relex)
+        # The demand-backed rule above is strict; also offer the peer-median (IQR) outliers, once per depot × product,
+        # in their own phase so the demand-backed findings stay first.
+        seen = {(p["depotCode"].strip().lower(), p["productCode"].strip().lower()) for p in proposals}
+        peers = [p for p in iqr_outliers(snapshot, kind, relex)
+                 if (p["depotCode"].strip().lower(), p["productCode"].strip().lower()) not in seen]
         checks.extend(notes)
         checks.extend(grouped_changes(proposals, "relex-anomali",
             relex_path(snapshot, kind).name + f" / Effective quantity, 14 Days Sales, Daily FC; Kampanya / {CAMPAIGN}"))
+        checks.extend(grouped_changes(peers, "relex-aykiri",
+            relex_path(snapshot, kind).name + " / Effective quantity, Order batch size (aynı ürün, aynı depo tipi)"))
         result, report, frame = run_motor(root, snapshot, kind, day, center, "taslak")
         limits = json.loads(report.read_text())["ozet"]["merkez"]
         draft = result["parquet"]

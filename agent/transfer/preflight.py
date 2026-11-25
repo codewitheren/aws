@@ -381,6 +381,53 @@ def relex_anomalies(snapshot, kind, center, day, relex):
     return changes, notes
 
 
+def iqr_outliers(snapshot, kind, relex):
+    """Depots whose proposal is far above the same product's G10/GB peers (IQR rule), pulled to the median.
+
+    Complements relex_anomalies, which also requires excess demand; same exemptions (campaign, demirbaş, water).
+    """
+    d = relex.copy()
+    d["Domain Type"] = domain(d)
+    d["_product"] = ids(d["Product code"])
+    d["_q"] = numbers(d["Effective quantity"])
+    d["_batch"] = numbers(d["Order batch size"])
+    campaign = table(snapshot, CAMPAIGN)
+    protected = pd.Series(False, index=d.index)
+    for dtype in ("G10", "GB"):
+        products = ids(pd.concat([campaign[f"{dtype} T"], campaign[f"{dtype} T-1"]])).dropna()
+        protected |= d["Domain Type"].eq(dtype) & d["_product"].isin(products)
+    protected |= (d["Custom category"].fillna("") + " " + d["Custom sub-category"].fillna("")).map(_norm).str.contains("demirbas")
+    protected |= d["Product name"].fillna("").map(_norm).str.contains("beypazar")
+    if kind == "amb":
+        protected |= d["_product"].isin(ids(table(snapshot, WATER)["Product ID"]).dropna())
+    # Compare independent depots with exactly one non-bulk proposal for the product.
+    valid = d["Domain Type"].isin(["G10", "GB"]) & d["_product"].notna() & d["Location code"].notna()
+    valid &= ~d.duplicated(["Location code", "Product code"], keep=False)
+    valid &= d["_q"].ge(0) & ~d["Transfer type"].astype(str).str.strip().str.upper().eq("BULK")
+    d = d[valid]
+    groups = d.groupby(["_product", "Domain Type"])["_q"]
+    median, mean, count = groups.transform("median"), groups.transform("mean"), groups.transform("count")
+    q1, q3 = groups.transform("quantile", q=.25), groups.transform("quantile", q=.75)
+    spread = pd.concat([q3 - q1, .25 * median], axis=1).max(axis=1).clip(lower=1)
+    limit = q3 + 1.5 * spread
+    hits = d[count.ge(8) & d["_q"].gt(limit) & d["_q"].gt(d["_batch"]) & d["_batch"].gt(0) & ~protected.reindex(d.index)]
+    volumes = unit_volumes(snapshot, kind) if not hits.empty else {}
+    changes = []
+    for idx, row in hits.iterrows():
+        current, b, med = row["_q"], row["_batch"], median[idx]
+        proposed = max(b, (med // b) * b)
+        if proposed >= current:
+            continue
+        volume = volumes.get(row["_product"])
+        excess = (current - med) * volume if volume is not None else current - med
+        evidence = (f"Öneri {current:g}, {row['Domain Type']} medyanı {med:g}, ortalama {mean[idx]:.1f}; "
+                    f"aykırılık üst sınırı {limit[idx]:.1f} ({count[idx]} depo). Batch {b:g}."
+                    + (f" Medyan üzerindeki öneri {excess:.1f} L." if volume is not None else ""))
+        changes.append(relex_evidence(row, b, current, proposed, "relex-anomali", median=float(med),
+                                      evidence=evidence, score=float(excess), hasLiters=volume is not None))
+    return changes
+
+
 def volume_load(snapshot, kind, draft, relex):
     p = draft.copy()
     if kind == "amb":
