@@ -219,3 +219,11 @@ table.t{width:100%;border-collapse:collapse;font-size:13px}
 .dlg-list{list-style:none;margin:0;padding:0 20px 20px;overflow-y:auto;display:flex;flex-direction:column}
 .dlg-list li{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
 .ellipsis{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Uyarı sekmeleri ve sayfalama */
+.seg-flush{margin:0}
+.seg button{display:inline-flex;align-items:center;gap:6px}
+.seg button:disabled{opacity:.45;cursor:default}
+.seg-n{font-variant-numeric:tabular-nums;font-size:12px;color:var(--muted);font-weight:500}
+.seg-dot{width:7px;height:7px;border-radius:50%;display:block}
+.d-kritik{background:var(--krit-mark)}.d-uyari{background:var(--uyari-mark);border-radius:1px;transform:rotate(45deg)}.d-bilgi{background:none;border:2px solid var(--bilgi-mark);width:5px;height:5px}
+.pager{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding-top:12px;border-top:1px solid var(--line)}
