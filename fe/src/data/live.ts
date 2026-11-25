@@ -121,12 +121,13 @@ export async function getAnomalies(): Promise<AnomalyData> {
   const v = await view(run);
   const reviewed = run.findings.map((f) => [
     f.depot, f.product, f.domain, f.current, f.median, f.proposed,
+    run.changes[String(f.row)] !== undefined ? `Koşuda ${nf(run.changes[String(f.row)])} olarak uygulandı` : 'Olduğu gibi bırakıldı',
   ]);
   const cards = [
     ...(reviewed.length ? [{
-      title: 'Aykırı PL önerileri',
-      subtitle: 'Aynı ürün, aynı depo tipinde IQR üst sınırını aşan öneriler. Koşuyu değiştirmez; Forecast ekibine iletmek içindir.',
-      columns: ['Depo', 'Ürün', 'Depo tipi', 'Öneri', 'Medyan', 'Önerilen (sipariş katı)'],
+      title: 'Aykırı PL önerileri (agent incelemesi)',
+      subtitle: 'Aynı ürün, aynı depo tipinde IQR üst sınırını aşan öneriler ve koşudaki kararınız.',
+      columns: ['Depo', 'Ürün', 'Depo tipi', 'Öneri', 'Medyan', 'Agent önerisi', 'Koşu durumu'],
       rows: reviewed,
     }] : []),
     ...v.kartlar.map((k) => ({ title: fx(k.baslik), subtitle: fx(k.alt ?? ''), columns: k.tablo.kolonlar.map(fx), rows: k.tablo.satirlar })),

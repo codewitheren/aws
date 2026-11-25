@@ -2,7 +2,7 @@
 
 Transfer ekibinin iç aracı. Analist bir merkez depo ve transfer tipi seçer; sistem bugünün Forecast önerisini alır, kesim motorunu çalıştırır, ardından bir AI agent sonucu kontrol eder. Agent aykırı PL önerileri bulursa ne bulduğunu ve ne önerdiğini anlatır, onay ister. Arayüz transfer çıktısını, agent'ın bulgularını, açıklamalarını ve grafikleri gösterir.
 
-**Temel kural:** Agent Forecast'e ya da başka hiçbir sisteme yazmaz. Onaylanan düzeltmeler yalnızca o koşunun çıktısına uygulanır; kullanıcı dosyaları indirip kendisi uygular.
+**Temel kural:** Agent Forecast'a ya da başka hiçbir sisteme yazmaz. Onaylanan düzeltmeler yalnızca o koşunun çıktısına uygulanır; kullanıcı dosyaları indirip kendisi uygular.
 
 Koşular yalnızca bugün için yapılır (tarih seçici yoktur).
 
@@ -90,7 +90,7 @@ Son bulgu yanıtlanınca koşu kendiliğinden devam eder.
 | Arayüz adımı | Backend eylemi |
 |---|---|
 | Hesapla | `prepare` (merkez, tip `amb`/`cold`/`ms`, İstanbul'a göre bugün) → girdiler + aykırı PL bulguları |
-| Aykırı PL önerileri | Koşuda sorulmaz; `finish` Forecast önerisiyle (`changes: {}`) çalışır, bulgular Forecast anomalileri sayfasında listelenir |
+| Onay kartları | Tarayıcıda; kararlar `finish` çağrısına `changes` (satır → sipariş katına yuvarlanmış miktar) olarak gider |
 | Kesim motoru | `finish` → özet, dosyalar S3'te |
 | Sayfa yenileme | `status` ile bu sekmedeki son koşu geri yüklenir |
 | Sonuçlar, Trend, Depolar | `view` (depo tablosu, neden payları, öneri kontrol kartları, tam gönderim doluluğu) |
