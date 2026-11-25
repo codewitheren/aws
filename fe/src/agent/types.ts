@@ -16,7 +16,7 @@ export interface RunContext {
   merkez: string;
   transferType: TransferTypeId;
   transferTypeLabel: string;
-  /** Optimizasyon günü, "YYYY-MM-DD". Optimizasyonlar yalnızca bugün için yapılır. */
+  /** Optimizasyonun iş tarihi, "YYYY-MM-DD". */
   runDate: string;
 }
 
@@ -112,6 +112,8 @@ export type AgentEvent = RunEvent | ChatEvent;
 
 export interface StartRunCommand {
   type: 'start_run';
+  /** İş tarihi "YYYY-MM-DD"; verilmezse bugün (İstanbul). Sayım, teslimat ve girdi güncelliği buna göre denetlenir. */
+  date?: string;
   merkez: string;
   transferType: TransferTypeId;
 }

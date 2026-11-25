@@ -424,7 +424,7 @@ export function createAgentCoreClient(): AgentClient {
       const why = state.legacy ? 'Bu inceleme eski sürümle başlatılmış; yeni optimizasyon başlatın.'
         : errors.map((c) => `${forecastName(c.title)}: ${forecastName(c.evidence)}`).join(' · ');
       a.emit({ type: 'step_completed', runId: id, step: 'relex_read', detail: 'Kritik girdi hatası; motor çalıştırılmadı' });
-      return fail(a, new Error('Girdi düzeltilmeden optimizasyon çalışmaz. ' + why));
+      return fail(a, new Error('Kritik girdi bulgusu var; motor çalıştırılmadı. ' + why + ' · Merkez seçimini ve iş tarihini kontrol edin; girdi eskiyse Google Sheet güncellendikten sonra yeniden deneyin.'));
     }
     const total = checks.length + a.remaining;
     const info = checks.filter((c) => c.level === 'bilgi').length;
@@ -451,7 +451,7 @@ export function createAgentCoreClient(): AgentClient {
 
     startRun(command, onEvent) {
       doneRestoring(); // yeni optimizasyon, yarım kalan geri yüklemenin yerini alır
-      const run = newRun(crypto.randomUUID(), command.merkez, command.transferType, todayIstanbul());
+      const run = newRun(crypto.randomUUID(), command.merkez, command.transferType, command.date || todayIstanbul());
       writeStore(RUN_KEY, { session: run.session, merkez: run.merkez, transferType: run.transferType, runDate: run.runDate });
       chat.length = 0;
       const { a, handle } = begin(run, onEvent);

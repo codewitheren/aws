@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { dataApi } from '../data/api';
 import type { MerkezOption } from '../data/types';
 import { formatDate, formatDateWithWeekday, formatTime, nf } from '../lib/format';
@@ -26,6 +26,8 @@ function KosuForm({ merkezler }: { merkezler: MerkezOption[] }) {
   const { state, actions } = useRunStore();
   const { selection, run } = state;
   const today = useMemo(() => new Date(), []);
+  const [businessDay, setBusinessDay] = useState(() => new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Istanbul' }).format(today));
+  const dayValid = /^\d{4}-\d{2}-\d{2}$/.test(businessDay);
   const active = isActive(run);
   const merkez = merkezler.find((m) => m.ad === selection.merkez) ?? merkezler[0];
   const tip = merkez.tipler.find((t) => t.id === selection.transferType) ?? merkez.tipler[0];
@@ -98,15 +100,21 @@ function KosuForm({ merkezler }: { merkezler: MerkezOption[] }) {
         <section className="card" aria-labelledby="s3">
           <h2 id="s3">3 · Çalıştır</h2>
           <div className="split" style={{ alignItems: 'center', gap: 16 }}>
-            <div className="kv"><span className="lbl">Optimizasyon günü</span><strong>Bugün · {formatDateWithWeekday(today)}</strong></div>
-            <button type="button" className="btn btn-p" style={{ minWidth: 160 }} disabled={active || !(tip.relexAt || tip.relexNote)} onClick={actions.startRun}>
+            <label className="kv">
+              <span className="lbl">İş tarihi</span>
+              <input className="input" type="date" value={businessDay} required disabled={active}
+                onChange={(e) => setBusinessDay(e.target.value)} aria-describedby="day-note" />
+              {dayValid && <span className="sub">{formatDateWithWeekday(new Date(businessDay + 'T12:00:00'))}</span>}
+            </label>
+            <button type="button" className="btn btn-p" style={{ minWidth: 160 }} disabled={active || !dayValid || !(tip.relexAt || tip.relexNote)} onClick={() => actions.startRun(businessDay)}>
               {buttonText}
             </button>
           </div>
           {run && !active && !sameAsRun && (
             <p className="sub" role="note">Son optimizasyon {runLabel} içindi. Yeni seçiminiz için Hesapla'ya basın.</p>
           )}
-          <p className="sub">Optimizasyon yalnızca bugünün Forecast önerisiyle çalışır. Agent aykırı bir PL bulursa ne bulduğunu ve ne önerdiğini anlatır, onayınızı ister; onayladıklarınız yalnızca bu optimizasyonun çıktısına uygulanır. Forecast'a ya da başka bir sisteme yazmaz.</p>
+          <p className="sub" id="day-note">İş tarihi sayım, teslimat ve girdi güncelliği kontrollerinde kullanılır; Forecast ve kapasite girdileri bu güne ait olmalıdır. Girdiler her zaman Google Sheet'in güncel halinden okunur.</p>
+          <p className="sub"> Agent aykırı bir PL bulursa ne bulduğunu ve ne önerdiğini anlatır, onayınızı ister; onayladıklarınız yalnızca bu optimizasyonun çıktısına uygulanır. Forecast'a ya da başka bir sisteme yazmaz.</p>
         </section>
       </div>
 

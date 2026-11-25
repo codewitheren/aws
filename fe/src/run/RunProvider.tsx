@@ -5,7 +5,7 @@ import { initialState, reducer, type Selection, type StoreState } from './reduce
 
 interface RunActions {
   select(selection: Selection): void;
-  startRun(): void;
+  startRun(date?: string): void;
   respond(response: ApprovalResponse): Promise<void>;
   ask(question: string): void;
 }
@@ -54,13 +54,13 @@ export function RunProvider({ client, children }: { client: AgentClient; childre
 
   const select = useCallback((selection: Selection) => dispatch({ type: 'select', selection }), []);
 
-  const startRun = useCallback(() => {
+  const startRun = useCallback((date?: string) => {
     runHandle.current?.abort();
     const token = ++runToken.current;
     const { selection } = stateRef.current;
     dispatch({ type: 'run_requested' });
     runHandle.current = client.startRun(
-      { type: 'start_run', merkez: selection.merkez, transferType: selection.transferType },
+      { type: 'start_run', merkez: selection.merkez, transferType: selection.transferType, date },
       (event) => {
         if (token === runToken.current) dispatch({ type: 'run_event', event });
       },

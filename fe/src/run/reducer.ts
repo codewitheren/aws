@@ -3,6 +3,7 @@ import {
   type AgentError, type ApprovalRequest, type ApprovalResolution, type ChatEvent, type ChatLink, type CheckId,
   type RunContext, type RunEvent, type RunSummary, type StepId, type TransferTypeId,
 } from '../agent/types';
+import { config } from '../config';
 import { STEP_LABELS } from './labels';
 
 export type StepStatus = 'pending' | 'active' | 'done';
@@ -61,7 +62,7 @@ export type StoreAction =
   | { type: 'chat_event'; event: ChatEvent };
 
 export const initialState: StoreState = {
-  selection: { merkez: 'Maltepe', transferType: 'amb' },
+  selection: { merkez: config.agentMode === 'agentcore' ? 'İzmir' : 'Maltepe', transferType: 'amb' },
   run: null,
   responding: false,
   responseError: null,

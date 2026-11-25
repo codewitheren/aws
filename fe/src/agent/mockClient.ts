@@ -210,7 +210,7 @@ export function createMockAgentClient(): AgentClient {
         merkez: command.merkez,
         transferType: command.transferType,
         transferTypeLabel: tip?.ad ?? command.transferType,
-        runDate: isoDay(new Date()),
+        runDate: command.date || isoDay(new Date()),
       };
       if (!merkez || !tip || !tip.relexAt) {
         const t = setTimeout(() => onEvent({
