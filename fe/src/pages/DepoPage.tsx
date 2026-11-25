@@ -60,7 +60,7 @@ function correctionSummary(d: DepotDetail, state: FindingState, total: number): 
   const f = d.finding;
   if (!f) return null;
   const lead = `${f.product} önerisi ${f.group} medyanından çok uzaktı (${nf(f.relexValue)}; medyan ${nf(f.median)}).`;
-  if (state.kind === 'not_asked') return `${lead} Bu oturumda ${f.merkez} koşusu yapılmadı; agent bunu koşu sırasında onayınıza sunar. Şu an Relex değerleri gösteriliyor.`;
+  if (state.kind === 'not_asked') return `${lead} Bu oturumda ${f.merkez} koşusu yapılmadı; agent bunu koşu sırasında onayınıza sunar. Şu an Forecast değerleri gösteriliyor.`;
   if (state.kind === 'pending') return `${lead} Koşu sürüyor; bu öneri için kararınız bekleniyor.`;
   const o = state.resolution.outcome;
   if (o.kind === 'applied') {
@@ -85,8 +85,8 @@ function Detail({ d }: { d: DepotDetail }) {
   const correction = correctionSummary(d, fState, fig.total);
   const absorbed = d.finding ? d.waterfall.cuts.find((c) => c.key === d.finding?.absorbedByCut)?.source ?? '' : '';
   const totalNote = fig.delta > 0
-    ? `Öneri, onayladığınız düzeltmeden sonraki değerdir (Relex: ${nf(d.waterfall.relexTotal)}).`
-    : d.finding && fState.kind === 'resolved' ? 'Öneri, Relex değeridir; düzeltme uygulanmadı.' : 'Öneri, Relex değeridir.';
+    ? `Öneri, onayladığınız düzeltmeden sonraki değerdir (Forecast: ${nf(d.waterfall.relexTotal)}).`
+    : d.finding && fState.kind === 'resolved' ? 'Öneri, Forecast değeridir; düzeltme uygulanmadı.' : 'Öneri, Forecast değeridir.';
 
   return (
     <>

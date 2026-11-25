@@ -68,7 +68,7 @@ export function RunStatusPanel({ run, title, announcement }: Props) {
         <div className="ok-box">
           <span className="ok-title">{run.summary.headline}</span>
           <span style={{ fontSize: 13 }}>
-            Aykırı Relex önerileri koşuyu değiştirmez; Sonuçlar → Relex anomalileri sayfasında listelenir. Agent hiçbir sisteme yazmaz.
+            Aykırı Forecast önerileri koşuyu değiştirmez; Sonuçlar → Forecast anomalileri sayfasında listelenir. Agent hiçbir sisteme yazmaz.
           </span>
           {!run.summary.resultsAvailable && (
             <span style={{ fontSize: 13 }}>

@@ -3,7 +3,7 @@
  * prepare → (kullanıcı kararları tarayıcıda) → finish, status, download, explain, view, depot.
  * Koşu kimliği Runtime oturum UUID'sidir; her yeni koşu yeni bir oturum açar.
  */
-import { nf } from '../lib/format';
+import { forecastName, nf } from '../lib/format';
 import type { AgentClient } from './client';
 import { readEventStream } from './sse';
 import type {
@@ -257,7 +257,7 @@ export function createAgentCoreClient(): AgentClient {
     });
   };
 
-  /** Aykırı öneriler koşuda sorulmaz (Relex anomalileri sayfasında listelenir); motor Relex önerisiyle çalışır. */
+  /** Aykırı öneriler koşuda sorulmaz (Forecast anomalileri sayfasında listelenir); motor Forecast önerisiyle çalışır. */
   const finish = async (a: Active) => {
     const id = a.run.session;
     a.emit({ type: 'step_started', runId: id, step: 'cutting_engine' });
@@ -300,7 +300,7 @@ export function createAgentCoreClient(): AgentClient {
           run.findings = state.findings ?? [];
           a.emit({ type: 'step_completed', runId: run.session, step: 'relex_read',
             detail: `${nf(state.rows ?? 0)} öneri satırı okundu`
-              + (run.findings.length ? ` · ${nf(run.findings.length)} aykırı öneri Relex anomalilerinde` : '')
+              + (run.findings.length ? ` · ${nf(run.findings.length)} aykırı öneri Forecast anomalilerinde` : '')
               + (state.unknownDomain ? ` · ${nf(state.unknownDomain)} satırda depo tipi eksik` : '') });
           void finish(a);
         })
@@ -336,7 +336,7 @@ export function createAgentCoreClient(): AgentClient {
     },
 
     async respondToApproval() {
-      throw new Error('Koşu sırasında onay istenmez; aykırı öneriler Relex anomalileri sayfasında.');
+      throw new Error('Koşu sırasında onay istenmez; aykırı öneriler Forecast anomalileri sayfasında.');
     },
 
     ask(command, onEvent: (e: ChatEvent) => void) {
@@ -351,7 +351,7 @@ export function createAgentCoreClient(): AgentClient {
       emit({ type: 'chat_message_started', messageId: id });
       invoke<{ answer: string }>(run.session, { action: 'explain', question: command.question }, controller.signal)
         .then(({ answer }) => {
-          emit({ type: 'chat_delta', messageId: id, delta: answer });
+          emit({ type: 'chat_delta', messageId: id, delta: forecastName(answer) });
           emit({ type: 'chat_message_completed', messageId: id, links: [] });
         })
         .catch((err) => {

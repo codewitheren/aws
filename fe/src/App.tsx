@@ -14,7 +14,7 @@ import { useTheme } from './theme/theme';
 const TITLES: Record<Route['name'], string> = {
   kosu: 'Koşu başlat',
   sonuclar: 'Sonuçlar',
-  anomaliler: 'Relex anomalileri',
+  anomaliler: 'Forecast anomalileri',
   trend: 'Kısma trendi',
   depolar: 'Depolar',
   depo: 'Depo detayı',

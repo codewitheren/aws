@@ -1,8 +1,8 @@
 # Transfer Kontrol Paneli
 
-Transfer ekibinin iç aracı. Analist bir merkez depo ve transfer tipi seçer; sistem bugünün Relex önerisini alır, kesim motorunu çalıştırır, ardından bir AI agent sonucu kontrol eder. Agent aykırı PL önerileri bulursa ne bulduğunu ve ne önerdiğini anlatır, onay ister. Arayüz transfer çıktısını, agent'ın bulgularını, açıklamalarını ve grafikleri gösterir.
+Transfer ekibinin iç aracı. Analist bir merkez depo ve transfer tipi seçer; sistem bugünün Forecast önerisini alır, kesim motorunu çalıştırır, ardından bir AI agent sonucu kontrol eder. Agent aykırı PL önerileri bulursa ne bulduğunu ve ne önerdiğini anlatır, onay ister. Arayüz transfer çıktısını, agent'ın bulgularını, açıklamalarını ve grafikleri gösterir.
 
-**Temel kural:** Agent Relex'e ya da başka hiçbir sisteme yazmaz. Onaylanan düzeltmeler yalnızca o koşunun çıktısına uygulanır; kullanıcı dosyaları indirip kendisi uygular.
+**Temel kural:** Agent Forecast'e ya da başka hiçbir sisteme yazmaz. Onaylanan düzeltmeler yalnızca o koşunun çıktısına uygulanır; kullanıcı dosyaları indirip kendisi uygular.
 
 Koşular yalnızca bugün için yapılır (tarih seçici yoktur).
 
@@ -12,7 +12,7 @@ Koşular yalnızca bugün için yapılır (tarih seçici yoktur).
 |---|---|
 | `#/kosu` | Koşu başlatma: merkez, transfer tipi, Hesapla, koşu durumu ve agent onayları |
 | `#/sonuclar` | Sonuç özeti (göstergeler, uyarılar, dosyalar, "Agent'a sor") |
-| `#/sonuclar/anomaliler` | Relex anomalileri |
+| `#/sonuclar/anomaliler` | Forecast anomalileri |
 | `#/trend` | Kısma trendi (30 gün) |
 | `#/depolar` | Doluluk–kısma dağılımı, depo listesi, Kavacık özeti |
 | `#/depolar/:id` | Depo detayı (örnek veride `goztepe` ve `kavacik`; diğerleri için "detay verisi yok") |
@@ -90,7 +90,7 @@ Son bulgu yanıtlanınca koşu kendiliğinden devam eder.
 | Arayüz adımı | Backend eylemi |
 |---|---|
 | Hesapla | `prepare` (merkez, tip `amb`/`cold`/`ms`, İstanbul'a göre bugün) → girdiler + aykırı PL bulguları |
-| Aykırı PL önerileri | Koşuda sorulmaz; `finish` Relex önerisiyle (`changes: {}`) çalışır, bulgular Relex anomalileri sayfasında listelenir |
+| Aykırı PL önerileri | Koşuda sorulmaz; `finish` Forecast önerisiyle (`changes: {}`) çalışır, bulgular Forecast anomalileri sayfasında listelenir |
 | Kesim motoru | `finish` → özet, dosyalar S3'te |
 | Sayfa yenileme | `status` ile bu sekmedeki son koşu geri yüklenir |
 | Sonuçlar, Trend, Depolar | `view` (depo tablosu, neden payları, öneri kontrol kartları, tam gönderim doluluğu) |
@@ -105,7 +105,7 @@ Canlı modda geçmiş koşu arşivi olmadığı için 30 günlük trend, ısı h
 Mock modda tüm ekran verisi örnektir (Maltepe · Ambient & Su, 23.11.2026). İçinde iki tür rakam vardır:
 
 **Tasarımda verilen sabit değerler** (`src/data/sample.ts`, aynen aktarıldı):
-- Koşu ekranı: merkezler, transfer tipleri, Relex geliş saatleri, öneri satır sayıları, "bugün koşuldu" saatleri.
+- Koşu ekranı: merkezler, transfer tipleri, Forecast geliş saatleri, öneri satır sayıları, "bugün koşuldu" saatleri.
 - Agent bulguları: Göztepe Bulaşık süngeri 5'li 100 (ort. 14, medyan 16); Bostancı Kedi maması 400 g tahmin 86 (ort. 11, medyan 9); Acıbadem Pirinç 1 kg 120 (ort. 19, medyan 18).
 - Sonuçlar: 52.872 önerilen / 29.688 gönderilen satır, C/P %56,2, kısma %44,2 (+1,8 / +3,1 puan), satır limiti 9.412 / 10.000, 5 uyarının metni ve kanıtları, 2.032 anomali (682 / 942 / 408).
 - Anomali tablosu: SuadiyeBüyük 448, Kozyatağı 212, Moda 196; medyan 68, üst sınır 170.

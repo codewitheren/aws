@@ -26,7 +26,7 @@ export function ResultsHeader({ context, active, anomalyTotal, action }: Props) 
           Özet
         </Link>
         <Link to={paths.anomaliler} className={'tab' + (active === 'anomaliler' ? ' on' : '')} aria-current={active === 'anomaliler' ? 'page' : undefined}>
-          Relex anomalileri
+          Forecast anomalileri
           <span className="chip c-uyari" aria-label={`${nf(anomalyTotal)} şüpheli satır`}>{nf(anomalyTotal)}</span>
         </Link>
       </nav>

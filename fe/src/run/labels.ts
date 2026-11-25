@@ -1,7 +1,7 @@
 import type { CheckId, StepId } from '../agent/types';
 
 export const STEP_LABELS: Record<StepId, string> = {
-  relex_read: 'Relex girdisi okunuyor',
+  relex_read: 'Forecast girdisi okunuyor',
   cutting_engine: 'Kesim motoru çalışıyor',
   agent_checks: 'Agent kontrol ediyor',
   ready: 'Hazır',
@@ -10,6 +10,6 @@ export const STEP_LABELS: Record<StepId, string> = {
 export const CHECK_LABELS: Record<CheckId, string> = {
   run_integrity: 'Koşu bütünlüğü',
   faulty_output: 'Hatalı çıktı',
-  relex_anomalies: 'Relex anomalileri',
+  relex_anomalies: 'Forecast anomalileri',
   depot_cuts: 'Depo kısmaları',
 };

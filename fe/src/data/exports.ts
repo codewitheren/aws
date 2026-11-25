@@ -19,7 +19,7 @@ function runStatus(r: ApprovalResolution | undefined): string {
 }
 
 /**
- * Relex anomali listesi. Örnek veride yalnızca ekranda görünen satırlar vardır
+ * Forecast anomali listesi. Örnek veride yalnızca ekranda görünen satırlar vardır
  * (Coca-Cola Zero aykırı depoları + agent'ın koşuda sorduğu bulgular); 2.032 satırın tamamı backend'den gelir.
  */
 export function anomalyCsv(data: AnomalyData, resolutions: readonly ApprovalResolution[]): CsvFile {

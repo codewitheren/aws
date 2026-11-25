@@ -48,8 +48,8 @@ export function FilesCard({ sentLines, anomalyFile, alertsFile }: Props) {
           <small>.xlsx · {nf(sentLines)} satır · sevkiyata gider</small>
         </button>
         <button type="button" className="btn btn-file" onClick={() => void get('anomaliler.csv', anomalyFile)} disabled={busy}>
-          <span>Relex anomali listesi</span>
-          <small>{live ? '.csv · Relex\'e gider' : `.csv · örnek dosyada ${nf(anomalyFile.rows.length)} satır · Relex'e gider`}</small>
+          <span>Forecast anomali listesi</span>
+          <small>{live ? '.csv · Forecast\'e gider' : `.csv · örnek dosyada ${nf(anomalyFile.rows.length)} satır · Forecast'a gider`}</small>
         </button>
         <button type="button" className="btn btn-file" onClick={() => void get('uyarilar.csv', alertsFile)} disabled={busy}>
           <span>Uyarı listesi</span>

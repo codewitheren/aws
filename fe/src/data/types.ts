@@ -21,7 +21,7 @@ export interface SampleContext {
 export interface TransferTypeOption {
   id: TransferTypeId;
   ad: string;
-  /** Relex girdisinin geldiği saat; gelmediyse null (tip seçilemez). */
+  /** Forecast girdisinin geldiği saat; gelmediyse null (tip seçilemez). */
   relexAt: string | null;
   lineCount: number | null;
   /** Saat bilinmiyorsa gösterilecek açıklama; varsa tip seçilebilir. */
@@ -62,7 +62,7 @@ export interface ResultsData {
   chatSuggestions: string[];
 }
 
-// ---- Relex anomalileri ----
+// ---- Forecast anomalileri ----
 
 export interface AnomalyCategory {
   label: string;

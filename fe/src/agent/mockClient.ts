@@ -125,7 +125,7 @@ export function createMockAgentClient(): AgentClient {
       if (!merkez || !tip || !tip.relexAt) {
         const t = setTimeout(() => onEvent({
           type: 'run_failed', runId: null,
-          error: { code: 'relex_input_missing', message: 'Bu merkez ve transfer tipi için bugünün Relex girdisi yok.' },
+          error: { code: 'relex_input_missing', message: 'Bu merkez ve transfer tipi için bugünün Forecast girdisi yok.' },
         }), 0);
         return { abort: () => clearTimeout(t) };
       }

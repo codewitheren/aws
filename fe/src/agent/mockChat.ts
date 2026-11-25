@@ -16,7 +16,7 @@ function goztepe(resolutions: readonly ApprovalResolution[]): CannedAnswer {
   const r = resolutions.find((x) => x.findingKey === GOZTEPE_KEY);
   const delta = r && r.outcome.kind === 'applied' ? r.originalValue - r.outcome.value : 0;
   const proposal = delta > 0
-    ? `Relex önerisi 25.605 adet, yani 41,8 palet; onayladığınız düzeltmeyle bu koşuda ${nf(25605 - delta)} adet.`
+    ? `Forecast önerisi 25.605 adet, yani 41,8 palet; onayladığınız düzeltmeyle bu koşuda ${nf(25605 - delta)} adet.`
     : 'Öneri 25.605 adet, yani 41,8 palet.';
   return {
     text:

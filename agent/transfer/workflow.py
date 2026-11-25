@@ -2,6 +2,7 @@
 import csv
 import json
 import math
+import re
 import sys
 from pathlib import Path
 
@@ -63,11 +64,21 @@ def inspect(snapshot, kind, center):
     return dict(center=center, rows=len(frame), findings=rows, unknownDomain=int((~domain.isin(["G10","GB"])).sum()))
 
 
+def forecast_name(value):
+    # The engine calls the demand forecast source "Relex"; users know it as Forecast.
+    if not isinstance(value, str):
+        return value
+    value = re.sub(r"Relex['’]te", "Forecast'ta", value)
+    value = re.sub(r"Relex['’]e\b", "Forecast'a", value)
+    value = re.sub(r"Relex['’]in\b", "Forecast'un", value)
+    return value.replace("Relex", "Forecast")
+
+
 def write_csv(path, columns, rows):
     with path.open("w", encoding="utf-8-sig", newline="") as stream:
         writer = csv.writer(stream, delimiter=";")
-        writer.writerow(columns)
-        writer.writerows(rows)
+        writer.writerow([forecast_name(c) for c in columns])
+        writer.writerows([forecast_name(v) for v in row] for row in rows)
 
 
 def finish(root, job):

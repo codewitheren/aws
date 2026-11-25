@@ -33,7 +33,7 @@ function Outcome({ finding, state, relexTotal, total, delta, absorbedLabel }: Pr
   if (state.kind === 'not_asked') {
     return (
       <p className="measure">
-        Bu oturumda {finding.merkez} koşusu henüz yapılmadı; rakamlar Relex değerleriyle gösteriliyor (depo önerisi {nf(relexTotal)}).
+        Bu oturumda {finding.merkez} koşusu henüz yapılmadı; rakamlar Forecast değerleriyle gösteriliyor (depo önerisi {nf(relexTotal)}).
         Koşu başlatıldığında agent aykırı önerileri onayınıza sunar. <Link to={paths.kosu}>Koşu ekranına git</Link>
       </p>
     );
@@ -42,7 +42,7 @@ function Outcome({ finding, state, relexTotal, total, delta, absorbedLabel }: Pr
     return (
       <p className="measure">
         {state.awaitingNow ? 'Agent şu an bu öneri için onayınızı bekliyor.' : 'Koşu sürüyor; bu öneri için henüz karar verilmedi.'}{' '}
-        Karar verilene kadar rakamlar Relex değerleriyle gösteriliyor. <Link to={paths.kosu}>Koşu ekranına git</Link>
+        Karar verilene kadar rakamlar Forecast değerleriyle gösteriliyor. <Link to={paths.kosu}>Koşu ekranına git</Link>
       </p>
     );
   }
@@ -57,7 +57,7 @@ function Outcome({ finding, state, relexTotal, total, delta, absorbedLabel }: Pr
         {how} ve kesim {nf(outcome.value)} adet üzerinden yapıldı (−{nf(finding.relexValue - outcome.value)} adet).
         Deponun toplam önerisi {nf(relexTotal)} adetten {nf(total)} adede indi.
         Gönderilen miktar değişmedi: bu {nf(delta)} adet zaten {absorbedLabel} kesilecekti.
-        Relex'teki kayıt değişmedi; satır anomali listesinde "koşuda düzeltildi" notuyla duruyor.{pendingRun}
+        Forecast'taki kayıt değişmedi; satır anomali listesinde "koşuda düzeltildi" notuyla duruyor.{pendingRun}
       </p>
     );
   }
@@ -67,7 +67,7 @@ function Outcome({ finding, state, relexTotal, total, delta, absorbedLabel }: Pr
   return (
     <p className="measure">
       {why}; kesim {relex} adet üzerinden yapıldı. Deponun toplam önerisi {nf(relexTotal)} olarak kaldı.
-      Satır Relex anomali listesinde "düzeltilmedi" notuyla duruyor; Relex ekibiyle doğrulamanız önerilir.{pendingRun}
+      Satır Forecast anomali listesinde "düzeltilmedi" notuyla duruyor; Forecast ekibiyle doğrulamanız önerilir.{pendingRun}
     </p>
   );
 }
@@ -97,7 +97,7 @@ export function FindingCard(props: Props) {
         <StateChip state={state} />
       </div>
       <div className="grid-auto" style={{ gap: 16, ['--min' as string]: '150px' }}>
-        {kv('Relex önerisi', `${nf(finding.relexValue)} adet`)}
+        {kv('Forecast önerisi', `${nf(finding.relexValue)} adet`)}
         {kv(`${finding.group} ortalaması`, nf(finding.mean))}
         {kv(`${finding.group} medyanı`, nf(finding.median))}
         {kv('Agent önerisi', `${nf(finding.relexValue)} → ${nf(finding.median)}`)}

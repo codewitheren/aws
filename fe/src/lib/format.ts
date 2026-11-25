@@ -32,3 +32,10 @@ export function isoDay(d: Date): string {
   const p = (n: number) => String(n).padStart(2, '0');
   return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
 }
+
+/** Motor ve agent metinlerinde talep tahmini kaynağı "Relex" geçer; arayüzde adı Forecast. */
+export function forecastName<T>(v: T): T {
+  if (typeof v !== 'string') return v;
+  return v.replace(/Relex['’]te/g, "Forecast'ta").replace(/Relex['’]e\b/g, "Forecast'a").replace(/Relex['’]in\b/g, "Forecast'un")
+    .replace(/Relex/g, 'Forecast') as T;
+}

@@ -4,7 +4,7 @@
  * Geçmiş koşu arşivi olmadığı için trend, düne göre fark ve kaldıraçlar boş bırakılır; örnek rakam gösterilmez.
  */
 import { fetchDepot, fetchView, liveRun, restored, TYPE_LABEL, type LiveRun } from '../agent/agentcore';
-import { formatDateWithWeekday, nf } from '../lib/format';
+import { formatDateWithWeekday, forecastName as fx, nf } from '../lib/format';
 import { paths } from '../router/router';
 import type {
   AlertLevel, AnomalyData, CutReason, CutTone, DepotDetail, DepotsData, MerkezOption, MetricBar, ResultsData,
@@ -103,8 +103,8 @@ export async function getResults(): Promise<ResultsData> {
     cutDelta: null,
     lineLimit: line ? { used: line.deger, limit: line.limit } : null,
     alerts: s.alerts.map((a) => ({
-      level: LEVEL[a.level] ?? 'bilgi', title: a.name, scope: `${s.center} · ${TYPE_LABEL[run.transferType]}`,
-      evidence: a.evidence, action: a.level === 'hata' ? 'Sevkiyattan önce kontrol edin' : a.level === 'uyari' ? 'Bugün bakın' : 'İzleyin',
+      level: LEVEL[a.level] ?? 'bilgi', title: fx(a.name), scope: `${s.center} · ${TYPE_LABEL[run.transferType]}`,
+      evidence: fx(a.evidence), action: a.level === 'hata' ? 'Sevkiyattan önce kontrol edin' : a.level === 'uyari' ? 'Bugün bakın' : 'İzleyin',
       link: { route: paths.anomaliler, label: 'Kontroller →' },
     })),
     anomalyTotal: v.sayi,
@@ -125,11 +125,11 @@ export async function getAnomalies(): Promise<AnomalyData> {
   const cards = [
     ...(reviewed.length ? [{
       title: 'Aykırı PL önerileri',
-      subtitle: 'Aynı ürün, aynı depo tipinde IQR üst sınırını aşan öneriler. Koşuyu değiştirmez; Relex ekibine iletmek içindir.',
+      subtitle: 'Aynı ürün, aynı depo tipinde IQR üst sınırını aşan öneriler. Koşuyu değiştirmez; Forecast ekibine iletmek içindir.',
       columns: ['Depo', 'Ürün', 'Depo tipi', 'Öneri', 'Medyan', 'Önerilen (sipariş katı)'],
       rows: reviewed,
     }] : []),
-    ...v.kartlar.map((k) => ({ title: k.baslik, subtitle: k.alt ?? '', columns: k.tablo.kolonlar, rows: k.tablo.satirlar })),
+    ...v.kartlar.map((k) => ({ title: fx(k.baslik), subtitle: fx(k.alt ?? ''), columns: k.tablo.kolonlar.map(fx), rows: k.tablo.satirlar })),
   ];
   return {
     context: contextOf(run),
@@ -152,7 +152,7 @@ export async function getTrend(): Promise<TrendData> {
     context: contextOf(run),
     rangeLabel: `bugünkü koşu (${contextOf(run).dateLabel})`,
     history: null,
-    todayReasons: v.nedenler.map((n) => ({ label: n.ad, pct: n.pay, reason: reasonGroup(n.ad) })),
+    todayReasons: v.nedenler.map((n) => ({ label: fx(n.ad), pct: n.pay, reason: reasonGroup(n.ad) })),
     topCut,
     limitNote: s.limits.map((l) => `${l.ad}: ${nf(l.deger)} / ${nf(l.limit)} ${l.birim}`).join(' · ') + ' · diğer merkez ve tipler için o koşuyu çalıştırın',
     limits: [{ merkez: run.merkez, amb: null, c4: null, ms: null, [run.transferType]: usage }],

@@ -15,7 +15,7 @@ export function KosuPage() {
     <div className="stack" data-focus-scope="kosu">
       <header className="page-head">
         <h1 tabIndex={-1}>Koşu başlat</h1>
-        <p className="sub">Merkez depo ve transfer tipini seçin. Sistem bugünün Relex önerisini alır, kesim motorunu çalıştırır, agent sonucu kontrol eder.</p>
+        <p className="sub">Merkez depo ve transfer tipini seçin. Sistem bugünün Forecast önerisini alır, kesim motorunu çalıştırır, agent sonucu kontrol eder.</p>
       </header>
       <Loadable resource={options}>{(merkezler) => <KosuForm merkezler={merkezler} />}</Loadable>
     </div>
@@ -84,7 +84,7 @@ function KosuForm({ merkezler }: { merkezler: MerkezOption[] }) {
                   disabled={!(t.relexAt || t.relexNote) || (active && t.id !== tip.id)}
                   onClick={() => actions.select({ merkez: merkez.ad, transferType: t.id })}>
                   <span className="tip-name">{t.ad}</span>
-                  <span style={{ flex: '1 1 150px' }}><span className="lbl">Relex girdisi</span><span>{t.relexAt ? 'Geldi · ' + t.relexAt : t.relexNote ?? 'Bekleniyor'}</span></span>
+                  <span style={{ flex: '1 1 150px' }}><span className="lbl">Forecast girdisi</span><span>{t.relexAt ? 'Geldi · ' + t.relexAt : t.relexNote ?? 'Bekleniyor'}</span></span>
                   <span style={{ flex: '1 1 110px' }}><span className="lbl">Öneri satırı</span><span>{t.lineCount !== null ? nf(t.lineCount) : '—'}</span></span>
                   <span style={{ flex: '1 1 150px' }}><span className="lbl">Bugün</span><span>{ran ? ran + "'de koşuldu" : 'Koşulmadı'}</span></span>
                 </button>
@@ -105,7 +105,7 @@ function KosuForm({ merkezler }: { merkezler: MerkezOption[] }) {
           {run && !active && !sameAsRun && (
             <p className="sub" role="note">Son koşu {runLabel} içindi. Yeni seçiminiz için Hesapla'ya basın.</p>
           )}
-          <p className="sub">Koşu yalnızca bugünün Relex önerisiyle çalışır. Agent'ın bulduğu aykırı öneriler kesimi değiştirmez; Sonuçlar → Relex anomalileri sayfasında listelenir. Agent Relex'e ya da başka bir sisteme yazmaz.</p>
+          <p className="sub">Koşu yalnızca bugünün Forecast önerisiyle çalışır. Agent'ın bulduğu aykırı öneriler kesimi değiştirmez; Sonuçlar → Forecast anomalileri sayfasında listelenir. Agent Forecast'a ya da başka bir sisteme yazmaz.</p>
         </section>
       </div>
 

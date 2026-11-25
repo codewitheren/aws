@@ -62,21 +62,21 @@ export const SAMPLE_OUTLIERS: SampleOutlier[] = [
   {
     findingKey: 'goztepe:bulasik-sungeri-5li', depotId: 'goztepe', title: "Göztepe · Bulaşık süngeri 5'li",
     metric: 'oneri', currentValue: 100, mean: 14, median: 16,
-    found: "Relex bu ürün için Göztepe'ye 100 adet öneriyor. Diğer G10 depolarda aynı ürünün önerisi ortalama 14, medyan 16. Bu değer medyanın yaklaşık 6 katı.",
+    found: "Forecast bu ürün için Göztepe'ye 100 adet öneriyor. Diğer G10 depolarda aynı ürünün önerisi ortalama 14, medyan 16. Bu değer medyanın yaklaşık 6 katı.",
     proposal: 'Öneriyi G10 medyanına çekmek: 100 → 16 (−84 adet).',
     impact: 'Göztepe toplam önerisi 25.605 → 25.521 adet.',
   },
   {
     findingKey: 'bostanci:kedi-mamasi-400g', depotId: 'bostanci', title: 'Bostancı · Kedi maması 400 g',
     metric: 'tahmin', currentValue: 86, mean: 11, median: 9,
-    found: "Relex tahmini Bostancı'da 86. Diğer G10 depolarda aynı ürünün tahmini ortalama 11, medyan 9. Bu değer medyanın yaklaşık 10 katı.",
+    found: "Forecast tahmini Bostancı'da 86. Diğer G10 depolarda aynı ürünün tahmini ortalama 11, medyan 9. Bu değer medyanın yaklaşık 10 katı.",
     proposal: 'Tahmini G10 medyanına çekip öneriyi buna göre yeniden hesaplamak: tahmin 86 → 9.',
     impact: 'Bu satırın önerisi düşer; depo toplamı buna göre güncellenir.',
   },
   {
     findingKey: 'acibadem:pirinc-1kg', depotId: 'acibadem', title: 'Acıbadem · Pirinç 1 kg',
     metric: 'oneri', currentValue: 120, mean: 19, median: 18,
-    found: "Relex bu ürün için Acıbadem'e 120 adet öneriyor. Diğer G10 depolarda aynı ürünün önerisi ortalama 19, medyan 18. Bu değer medyanın yaklaşık 7 katı.",
+    found: "Forecast bu ürün için Acıbadem'e 120 adet öneriyor. Diğer G10 depolarda aynı ürünün önerisi ortalama 19, medyan 18. Bu değer medyanın yaklaşık 7 katı.",
     proposal: 'Öneriyi G10 medyanına çekmek: 120 → 18 (−102 adet).',
     impact: 'Acıbadem toplam önerisi 102 adet azalır.',
   },
@@ -111,9 +111,9 @@ export const RESULTS: ResultsData = {
       action: 'Kronik: ek dolap ihtiyacını değerlendirin.', link: { route: '/depolar/kavacik', label: 'Depo detayı →' },
     },
     {
-      level: 'uyari', title: 'Relex önerisinde 2.032 şüpheli satır', scope: 'Tüm depolar · Relex',
+      level: 'uyari', title: 'Forecast önerisinde 2.032 şüpheli satır', scope: 'Tüm depolar · Forecast',
       evidence: '682 fazla stok şüphesi · 942 "tahmin 0 ama öneri var" · 408 "öneri 14 günlük satışı aşıyor"',
-      action: 'Anomali listesini indirip Relex ekibine iletin.', link: { route: '/sonuclar/anomaliler', label: 'Anomalileri aç →' },
+      action: 'Anomali listesini indirip Forecast ekibine iletin.', link: { route: '/sonuclar/anomaliler', label: 'Anomalileri aç →' },
     },
     {
       level: 'bilgi', title: "Buyaka'da demirbaş poşet 1.000 → 0", scope: 'Buyaka · depo sayımda',
@@ -123,7 +123,7 @@ export const RESULTS: ResultsData = {
   chatSuggestions: ["Göztepe'de neden bu kadar kıstık?", 'Kavacık neden kronik?', 'Kritik uyarıyı açıkla'],
 };
 
-// ---- Relex anomalileri ----
+// ---- Forecast anomalileri ----
 
 function anomalyInliers(): number[] {
   const r = rng(448);
@@ -147,7 +147,7 @@ export const ANOMALIES: AnomalyData = {
   outliers: [
     { depotId: 'moda', ad: 'Moda', value: 196, note: 'Üst sınırın üzerinde; izleyin.' },
     { depotId: 'kozyatagi', ad: 'Kozyatağı', value: 212, note: 'Üst sınırın üzerinde; GB depo, izleyin.' },
-    { depotId: 'suadiyebuyuk', ad: 'SuadiyeBüyük', value: 448, note: 'Fazla stok şüphesi. Öneriyi Relex ekibiyle doğrulayın.' },
+    { depotId: 'suadiyebuyuk', ad: 'SuadiyeBüyük', value: 448, note: 'Fazla stok şüphesi. Öneriyi Forecast ekibiyle doğrulayın.' },
   ],
 };
 
@@ -263,7 +263,7 @@ const GOZTEPE: DepotDetail = {
   cutPct: 93,
   explanation: {
     headline: "Göztepe'de önerinin %93'ü gönderilmiyor. Kısıt dolap değil, TIR limiti.",
-    body: 'Relex 25.605 adet istiyor; bu 41,8 palet eder. Deponun TIR limiti 4 palet olduğu için {kesim:palet} adet palet limitinden, {kesim:su} adet su alanından kesildi ve {gonderilen} adet gönderiliyor. Dolap şu an %28,6 dolu; her şey gitseydi %84,6 olurdu. A sınıfı ürünlerden 6.620 adet kesildi.',
+    body: 'Forecast 25.605 adet istiyor; bu 41,8 palet eder. Deponun TIR limiti 4 palet olduğu için {kesim:palet} adet palet limitinden, {kesim:su} adet su alanından kesildi ve {gonderilen} adet gönderiliyor. Dolap şu an %28,6 dolu; her şey gitseydi %84,6 olurdu. A sınıfı ürünlerden 6.620 adet kesildi.',
     recommendation: 'TIR limitini G10 medyanı olan 12 palete yaklaştırın. Buffer ya da ek dolap bu depoda sonucu değiştirmez.',
   },
   waterfall: {
@@ -283,8 +283,8 @@ const GOZTEPE: DepotDetail = {
     relexValue: 100,
     mean: 14,
     median: 16,
-    found: "Relex bu ürün için Göztepe'ye 100 adet öneriyordu. Diğer G10 depolarda aynı ürünün önerisi ortalama 14, medyan 16; değer medyanın yaklaşık 6 katı.",
-    proposed: 'Öneriyi G10 medyanına çekmek: 100 → 16 (−84 adet). Yalnızca bu koşuda, kesim motorundan önce; Relex kaydına dokunmadan.',
+    found: "Forecast bu ürün için Göztepe'ye 100 adet öneriyordu. Diğer G10 depolarda aynı ürünün önerisi ortalama 14, medyan 16; değer medyanın yaklaşık 6 katı.",
+    proposed: 'Öneriyi G10 medyanına çekmek: 100 → 16 (−84 adet). Yalnızca bu koşuda, kesim motorundan önce; Forecast kaydına dokunmadan.',
     absorbedByCut: 'palet',
   },
   tir: {
@@ -334,7 +334,7 @@ const KAVACIK: DepotDetail = {
   cutPct: 73,
   explanation: {
     headline: "Kavacık'ta önerinin %73'ü gönderilmiyor. Kısıt dolap hacmi.",
-    body: "Relex 15.753 adet istiyor; {kesim:hacim} adet hacimden, {kesim:su} adet su alanından, {kesim:palet} adet palet limitinden kesildi ve {gonderilen} adet gönderiliyor. Ortalama doluluk %128; her şey gitseydi %144 olurdu. Son 24 sipariş gününün 24'ünde hacim kısması var.",
+    body: "Forecast 15.753 adet istiyor; {kesim:hacim} adet hacimden, {kesim:su} adet su alanından, {kesim:palet} adet palet limitinden kesildi ve {gonderilen} adet gönderiliyor. Ortalama doluluk %128; her şey gitseydi %144 olurdu. Son 24 sipariş gününün 24'ünde hacim kısması var.",
     recommendation: 'Buffer zaten üst sınırda (1,10). Kalan kaldıraç ek dolap: ek dolap ihtiyacını değerlendirin.',
   },
   waterfall: {

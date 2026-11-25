@@ -44,7 +44,7 @@ function RunNote({ run, data }: { run: RunState | null; data: ResultsData }) {
         Bu koşuda {run.resolutions.length > 0 ? correctionSentence(run.resolutions)
           : run.summary && run.summary.corrections.applied + run.summary.corrections.unchanged > 0
             ? `${run.summary.corrections.applied} düzeltme uygulandı, ${run.summary.corrections.unchanged} öneri olduğu gibi bırakıldı.`
-            : 'agent düzeltme önermedi.'} Düzeltmeler yalnızca bu koşunun çıktısına uygulandı; Relex'te kayıt değişmedi.
+            : 'agent düzeltme önermedi.'} Düzeltmeler yalnızca bu koşunun çıktısına uygulandı; Forecast'ta kayıt değişmedi.
       </p>
     );
   }
@@ -71,7 +71,7 @@ function Summary({ data, anomalies }: { data: ResultsData; anomalies: AnomalyDat
       </section>
 
       <section aria-label="Göstergeler" className="grid-auto">
-        <div className="card kpi"><span className="lbl">Önerilen satır</span><span className="big">{nf(data.suggestedLines)}</span><span className="sub">Relex önerisi</span></div>
+        <div className="card kpi"><span className="lbl">Önerilen satır</span><span className="big">{nf(data.suggestedLines)}</span><span className="sub">Forecast önerisi</span></div>
         <div className="card kpi"><span className="lbl">Gönderilen satır</span><span className="big">{nf(data.sentLines)}</span><span className="sub">Kesim sonrası</span></div>
         <div className="card kpi"><span className="lbl">C/P</span><span className="big">{pct(data.cpPct, 1)}</span><span className="sub">Gönderilen / önerilen satır</span></div>
         <div className="card kpi">
