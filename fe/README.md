@@ -85,12 +85,12 @@ Son bulgu yanıtlanınca optimizasyon kendiliğinden devam eder.
 
 ## Canlı mod: AgentCore bağlantısı
 
-`src/agent/agentcore.ts` backend'in (`agent/main.py`) eylemleriyle konuşur. Her çağrı `start` → `pending`… → `transfer` olaylarını akıtır. Optimizasyon kimliği Runtime oturum UUID'sidir.
+`src/agent/agentcore.ts` backend'in (`agent/main.py`) eylemleriyle konuşur. `prepare` ve `finish` çağrıları çalışırken `activity` olayları, sonunda `transfer` yanıtı gelir. Optimizasyon durumu sekme indirmelerini, Python çağrılarını ve kontrol sonuçlarını olay günlüğünde gösterir. Kaydedilen Runtime olayları `status` ile geri yüklenir. Optimizasyon kimliği Runtime oturum UUID'sidir.
 
 | Arayüz adımı | Backend eylemi |
 |---|---|
 | Hesapla | `prepare` (merkez, tip `amb`/`cold`/`ms`, İstanbul'a göre bugün) → girdiler + aykırı PL bulguları |
-| Onay kartları | Tarayıcıda; kararlar `finish` çağrısına `changes` (satır → sipariş katına yuvarlanmış miktar) olarak gider |
+| Onay kartları | Kararlar tarayıcıda toplanır ve `finish` çağrısına `decisions` alanında gönderilir |
 | Kesim motoru | `finish` → özet, dosyalar S3'te |
 | Sayfa yenileme | `status` ile bu sekmedeki son optimizasyon geri yüklenir |
 | Sonuçlar, Trend, Depolar | `view` (depo tablosu, neden payları, öneri kontrol kartları, tam gönderim doluluğu) |

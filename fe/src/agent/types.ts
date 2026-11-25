@@ -5,11 +5,25 @@
 
 export type TransferTypeId = 'amb' | 'c4' | 'ms';
 
-export type StepId = 'relex_read' | 'outlier_review' | 'cutting_engine' | 'agent_checks' | 'ready';
-export const STEP_ORDER: readonly StepId[] = ['relex_read', 'outlier_review', 'cutting_engine', 'agent_checks', 'ready'];
+export type ActivityKind = 'command' | 'data' | 'check' | 'decision' | 'output' | 'error';
 
-export type CheckId = 'run_integrity' | 'faulty_output' | 'relex_anomalies' | 'depot_cuts';
-export const CHECK_ORDER: readonly CheckId[] = ['run_integrity', 'faulty_output', 'relex_anomalies', 'depot_cuts'];
+export interface RunActivity {
+  id: string;
+  at: string;
+  kind: ActivityKind;
+  title: string;
+  detail?: string;
+  code?: string;
+}
+
+export interface RunRevision {
+  depot: string;
+  product: string;
+  unit: string;
+  original: number;
+  revised: number;
+  final: number | null;
+}
 
 export interface RunContext {
   runId: string;
@@ -72,6 +86,7 @@ export interface RunSummary {
   headline: string;
   counts: { kritik: number; uyari: number; bilgi: number };
   corrections: { applied: number; unchanged: number };
+  revisions?: RunRevision[];
   /** ISO 8601 */
   finishedAt: string;
   /** Sonuç ekranlarındaki veri bu optimizasyona mı ait? Mock modda yalnızca örnek kombinasyon için true. */
@@ -85,12 +100,10 @@ export interface AgentError {
 
 export type RunEvent =
   | { type: 'run_started'; run: RunContext }
-  | { type: 'step_started'; runId: string; step: StepId }
-  | { type: 'step_progress'; runId: string; step: StepId; detail: string }
-  | { type: 'step_completed'; runId: string; step: StepId; detail?: string }
-  | { type: 'check_progress'; runId: string; check: CheckId; status: 'running' | 'done'; detail?: string }
+  | { type: 'run_activity'; runId: string; activity: RunActivity }
   | { type: 'approval_requested'; runId: string; approval: ApprovalRequest }
   | { type: 'approval_resolved'; runId: string; resolution: ApprovalResolution }
+  | { type: 'review_reset'; runId: string }
   | { type: 'run_completed'; runId: string; summary: RunSummary }
   | { type: 'run_failed'; runId: string | null; error: AgentError };
 
@@ -102,8 +115,8 @@ export interface ChatLink {
 
 export type ChatEvent =
   | { type: 'chat_message_started'; messageId: string }
-  | { type: 'chat_delta'; messageId: string; delta: string }
-  | { type: 'chat_message_completed'; messageId: string; links: ChatLink[] }
+  | { type: 'chat_delta'; messageId: string; delta: string; replace?: boolean }
+  | { type: 'chat_message_completed'; messageId: string; text?: string; links: ChatLink[] }
   | { type: 'chat_failed'; messageId: string | null; error: AgentError };
 
 export type AgentEvent = RunEvent | ChatEvent;
@@ -144,8 +157,7 @@ export type AgentCommand = StartRunCommand | RespondToApprovalCommand | AskComma
 // ---- Çalışma zamanı doğrulaması (ağdan gelen JSON için) ----
 
 const RUN_EVENT_TYPES: ReadonlySet<string> = new Set<RunEvent['type']>([
-  'run_started', 'step_started', 'step_progress', 'step_completed', 'check_progress',
-  'approval_requested', 'approval_resolved', 'run_completed', 'run_failed',
+  'run_started', 'run_activity', 'approval_requested', 'approval_resolved', 'review_reset', 'run_completed', 'run_failed',
 ]);
 const CHAT_EVENT_TYPES: ReadonlySet<string> = new Set<ChatEvent['type']>([
   'chat_message_started', 'chat_delta', 'chat_message_completed', 'chat_failed',
@@ -164,6 +176,15 @@ function typeOf(value: unknown): string | null {
 export function isRunEvent(value: unknown): value is RunEvent {
   const t = typeOf(value);
   return t !== null && RUN_EVENT_TYPES.has(t);
+}
+
+export function isRunActivity(value: unknown): value is RunActivity {
+  if (typeof value !== 'object' || value === null) return false;
+  const { id, at, kind, title, code, detail } = value as Partial<RunActivity>;
+  return typeof id === 'string' && typeof at === 'string' && Number.isFinite(Date.parse(at))
+    && typeof kind === 'string' && ['command', 'data', 'check', 'decision', 'output', 'error'].includes(kind)
+    && typeof title === 'string' && (code === undefined || typeof code === 'string')
+    && (detail === undefined || typeof detail === 'string');
 }
 
 export function isChatEvent(value: unknown): value is ChatEvent {

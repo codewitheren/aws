@@ -64,11 +64,18 @@ function Summary({ data, anomalies }: { data: ResultsData; anomalies: AnomalyDat
       <ResultsHeader context={data.context} active="ozet" anomalyTotal={data.anomalyTotal}
         action={<Link className="btn" to={paths.kosu}>Yeni optimizasyon</Link>} />
 
-      <section aria-label="Agent sonucu" className="hero">
-        <span className="lbl">Agent sonucu</span>
-        <p className="hero-text">{data.headline}</p>
-        <RunNote run={run} data={data} />
-      </section>
+      <div className="results-overview">
+        <section aria-label="Agent sonucu" className="hero">
+          <span className="lbl">Agent sonucu</span>
+          <p className="hero-text">{data.headline}</p>
+          <RunNote run={run} data={data} />
+        </section>
+        <FilesCard
+          sentLines={data.sentLines}
+          anomalyFile={anomalyCsv(anomalies, sampleRun?.resolutions ?? [])}
+          alertsFile={alertsCsv(data)}
+        />
+      </div>
 
       <section aria-label="Göstergeler" className="grid-auto">
         <div className="card kpi"><span className="lbl">Önerilen satır</span><span className="big">{nf(data.suggestedLines)}</span><span className="sub">Forecast önerisi</span></div>
@@ -94,17 +101,8 @@ function Summary({ data, anomalies }: { data: ResultsData; anomalies: AnomalyDat
         )}
       </section>
 
-      <div className="cols">
-        <div className="stack" style={{ flex: '2 1 560px' }}>
-          <AlertList alerts={data.alerts} />
-          <FilesCard
-            sentLines={data.sentLines}
-            anomalyFile={anomalyCsv(anomalies, sampleRun?.resolutions ?? [])}
-            alertsFile={alertsCsv(data)}
-          />
-        </div>
-        <ChatPanel suggestions={data.chatSuggestions} />
-      </div>
+      <AlertList alerts={data.alerts} />
+      <ChatPanel suggestions={data.chatSuggestions} />
     </>
   );
 }

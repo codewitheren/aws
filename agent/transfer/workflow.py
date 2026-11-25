@@ -1,4 +1,5 @@
 """Run transfer jobs in separate processes against immutable input snapshots."""
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import csv
 from hashlib import sha256
 from datetime import datetime
@@ -7,6 +8,7 @@ import re
 from pathlib import Path
 import shutil
 import sys
+from tempfile import TemporaryDirectory
 from zoneinfo import ZoneInfo
 
 import pandas as pd
@@ -17,9 +19,19 @@ from preflight import (CAMPAIGN, CATEGORIES, finding, grouped_changes, input_che
                        relex_anomalies, relex_path, volume_load)
 from analytics import compare_scenario, metrics, query
 from scenarios import apply_changes, edit_scenario
+from run_activity import PREFIX, activity, count
 import surucu
 
 ORDER = ("girdi-kontrolu", "parametre-takibi", "relex-anomali", "relex-aykiri", "hacim-yuku")
+MOTOR_FILE = {"amb": "Ambient_Su.py", "cold": "Cold.py", "ms": "MS.py"}
+
+
+def quiet(*args, **kwargs):
+    pass
+
+
+def worker_activity(*args, **kwargs):
+    print(PREFIX + json.dumps(activity(*args, **kwargs)), flush=True)
 
 
 def run_motor(root, snapshot, kind, day, center, label, params=None):
@@ -44,15 +56,45 @@ def check_motor(job):
         raise ValueError("Motor sürümü değişti. Aynı motorla karşılaştırma için yeni inceleme başlatın.")
 
 
-def prepare(root, job):
+def download_input_snapshot(snapshot, kind, emit=quiet):
+    csv_tabs = {gid: name for name, gid in sheets.SHEET_SEKMELERI[kind].values()}
+    if kind == "ms":
+        # MS needs this list for the pre-run review, while its motor does not read it.
+        csv_tabs[CAMPAIGN] = "Dokunulmayacak Ürünler (Kampanya)"
+    xlsx_tabs = sheets.ELLE_SEKMELER[kind]
+
+    def save(fetch, gid, target):
+        return target.write_bytes(fetch(gid))
+
+    emit("command", "Google Sheet sekmeleri isteniyor",
+         f"{len(csv_tabs)} CSV ve {len(xlsx_tabs)} Excel sekmesi", "download_input_snapshot()")
+    with TemporaryDirectory(dir=snapshot.parent) as directory:
+        staging = Path(directory) / "snapshot"
+        csv_dir, xlsx_dir = staging / "sheets", staging / "xlsx"
+        csv_dir.mkdir(parents=True)
+        xlsx_dir.mkdir()
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            downloads = {pool.submit(save, sheets.csv_indir, gid, csv_dir / str(gid)): (name, "CSV")
+                         for gid, name in csv_tabs.items()}
+            downloads.update({pool.submit(save, sheets.xlsx_indir, gid, xlsx_dir / sheets.dosya_adi(name)): (name, "XLSX")
+                              for name, gid in xlsx_tabs.values()})
+            for download in as_completed(downloads):
+                name, extension = downloads[download]
+                size = download.result()
+                emit("data", forecast_name(name), f"{extension} · {count(size)} bayt alındı")
+        staging.rename(snapshot)
+
+
+def prepare(root, job, emit=quiet):
     snapshot = root / "snapshot"
     kind, center, day = job["kind"], job["center"], job["date"]
     if not snapshot.is_dir():
-        sheets.yerel_kopya_al(str(snapshot), [kind], log=lambda *_: None)
-        if kind == "ms":
-            # MS needs this list for the pre-run review, while its motor does not read it.
-            (snapshot / "sheets" / str(CAMPAIGN)).write_bytes(sheets.csv_indir(CAMPAIGN))
+        download_input_snapshot(snapshot, kind, emit)
+    emit("command", "Forecast çalışma kopyası açılıyor", code="pandas.read_excel(...)")
     relex = pd.read_excel(relex_path(snapshot, kind), dtype={"Location code": str, "Product code": str})
+    emit("data", "Forecast tablosu belleğe alındı", f"{count(len(relex))} satır · {count(len(relex.columns))} sütun")
+    emit("command", "Girdi doğrulaması başlatıldı",
+         f"{center} · {day} · güncellik, kategori, depo × ürün ve sipariş katı", "input_checks()")
     checks = input_checks(snapshot, kind, day, relex)
     if not any(c["level"] == "hata" for c in checks):
         detected = surucu.merkez_tespit(relex, CATEGORIES[kind])
@@ -61,8 +103,19 @@ def prepare(root, job):
                 f"Seçilen merkez {center}. Dosyada tespit edilen merkez {detected['tespit'] or 'belirsiz'}.",
                 relex_path(snapshot, kind).name + " / Location code"))
     draft, limits = None, []
-    if not any(c["level"] == "hata" for c in checks):
-        checks.extend(parameter_checks(snapshot, kind, center, day, relex))
+    critical = [c for c in checks if c["level"] == "hata"]
+    if critical:
+        emit("check", "Girdiler koşuyu durdurdu", " · ".join(forecast_name(c["title"]) for c in critical))
+    else:
+        emit("check", "Girdiler doğrulandı", f"Merkez eşleşti · {count(len(checks))} girdi bulgusu")
+        emit("command", "Parametreler geçmişle karşılaştırılıyor",
+             "Kapasite, sayım, teslimat ve kategoriye özel kurallar", "parameter_checks()")
+        parameters = parameter_checks(snapshot, kind, center, day, relex)
+        checks.extend(parameters)
+        emit("check", "Parametre karşılaştırması tamamlandı", f"{count(len(parameters))} bulgu")
+        emit("command", "Öneriler satış ve benzer depolarla karşılaştırılıyor",
+             "14 günlük satış, günlük tahmin, sipariş katı ve aynı ürünün G10/GB dağılımı",
+             "relex_anomalies() → iqr_outliers()")
         proposals, notes = relex_anomalies(snapshot, kind, center, day, relex)
         # The demand-backed rule above is strict; also offer the peer-median (IQR) outliers, once per depot × product,
         # in their own phase so the demand-backed findings stay first.
@@ -74,16 +127,30 @@ def prepare(root, job):
             relex_path(snapshot, kind).name + f" / Effective quantity, 14 Days Sales, Daily FC; Kampanya / {CAMPAIGN}"))
         checks.extend(grouped_changes(peers, "relex-aykiri",
             relex_path(snapshot, kind).name + " / Effective quantity, Order batch size (aynı ürün, aynı depo tipi)"))
+        emit("check", "Öneri karşılaştırması tamamlandı",
+             f"Satış ve tahminden {count(len(proposals))}, depo dağılımından {count(len(peers))} satır adayı")
+        emit("command", "Taslak motor başlatıldı", "Girdi kopyasındaki özgün miktarlarla hesaplanıyor",
+             f'{MOTOR_FILE[kind]} · run_motor(label="taslak")')
         result, report, frame = run_motor(root, snapshot, kind, day, center, "taslak")
         limits = json.loads(report.read_text())["ozet"]["merkez"]
         draft = result["parquet"]
-        checks.extend(grouped_changes(volume_load(snapshot, kind, frame, relex), "hacim-yuku",
+        emit("output", "Taslak Parquet üretildi",
+             f"{count(len(frame))} satır · merkez ve All PL doğrulandı")
+        emit("command", "Taslak hacim yükü değerlendiriliyor",
+             "Önerilen hacim, dolap kapasitesi, satış ve stok", "volume_load()")
+        volume = volume_load(snapshot, kind, frame, relex)
+        checks.extend(grouped_changes(volume, "hacim-yuku",
             "Taslak motor parquet / önerilen hacim, dolap kapasitesi; Relex / satış ve stok"))
+        emit("check", "Hacim kontrolü tamamlandı", f"{count(len(volume))} satır adayı")
     checks.sort(key=lambda c: (ORDER.index(c["phase"]), {"hata": 0, "uyari": 1, "bilgi": 2}[c["level"]],
                                not c.get("hasLiters"), -c.get("score", 0)))
     for index, check in enumerate(checks):
         check["id"] = str(index + 1)
-    return dict(rows=len(relex), checks=checks, blocked=any(c["level"] == "hata" for c in checks),
+    blocked = any(c["level"] == "hata" for c in checks)
+    if not blocked:
+        warnings = sum(c["level"] == "uyari" for c in checks)
+        emit("check", "İnceleme bulguları hazır", f"{count(warnings)} uyarı · {count(len(checks) - warnings)} bilgi")
+    return dict(rows=len(relex), checks=checks, blocked=blocked,
                 draft=draft, draftLimits=limits, motorHash=motor_hash(kind))
 
 
@@ -151,11 +218,20 @@ def active_input(root, job):
     return revised
 
 
-def finish(root, job):
+def finish(root, job, emit=quiet):
     check_motor(job)
     kind, day, center = job["kind"], job["date"], job["center"]
     source = active_input(root, job)
+    revisions = job["revisions"]
+    emit("data", "Resmi motor girdisi hazır",
+         f"{count(len(revisions))} satıra onaylı miktar yazıldı" if revisions else "Özgün miktarlar kullanılıyor",
+         "apply_changes()" if revisions else None)
+    emit("command", "Resmi motor başlatıldı", f"{center} · {day}", f'{MOTOR_FILE[kind]} · run_motor(label="resmi")')
     result, report_path, frame = run_motor(root, source, kind, day, center, "resmi")
+    emit("output", "Resmi Excel ve Parquet üretildi",
+         f"{count(len(frame))} Parquet satırı · merkez ve All PL doğrulandı")
+    emit("command", "Motor çıktısı denetleniyor",
+         "Gönderim satırları, kısma nedenleri, limitler ve kategori kontrolleri", "metrics()")
     report = json.loads(report_path.read_text())
     stats = metrics(kind, frame)
     alerts = [dict(level=c["durum"], name=c["ad"], evidence=c["ozet"]) for c in report["kontrol"]
@@ -169,7 +245,6 @@ def finish(root, job):
             alerts.append(dict(level="hata", name="Demirbaş kesimi", evidence=f"{len(invalid)} satır. {examples}"))
     write_csv(root / "uyarilar.csv", ["Seviye", "Kontrol", "Kanıt"], [a.values() for a in alerts])
     findings = [edit for check in job["checks"] for edit in check.get("edits", [])]
-    revisions = job["revisions"]
     keys = lambda row: tuple(row[c].lower().strip() for c in ("depotCode", "productCode"))
     revised_values = {keys(r): r["value"] for r in revisions}
     write_csv(root / "anomaliler.csv", ["Kontrol", "Depo", "Ürün", "Kanıt", "Orijinal değer", "Optimizasyon değeri"],
@@ -198,6 +273,10 @@ def finish(root, job):
     if revisions:
         files["revize_log.csv"] = str(root / "revize_log.csv")
     depots, view = screen_view(report)
+    critical = sum(a["level"] == "hata" for a in alerts)
+    warnings = sum(a["level"] == "uyari" for a in alerts)
+    emit("check", "Çıktı denetimi tamamlandı",
+         f"{count(stats['createdRows'])} gönderim satırı · {count(critical)} kritik · {count(warnings)} uyarı")
     return dict(summary=summary, files=files, depots=depots, view=view)
 
 
@@ -230,8 +309,11 @@ def scenario(root, job):
 def main():
     root = Path(sys.argv[1])
     job = json.loads((root / "job.json").read_text())
-    handlers = {"prepare": prepare, "finish": finish, "scenario": scenario}
-    result = handlers[job["action"]](root, job)
+    handlers = {"prepare": prepare, "finish": finish}
+    if job["action"] == "scenario":
+        result = scenario(root, job)
+    else:
+        result = handlers[job["action"]](root, job, worker_activity)
     (root / "result.json").write_text(json.dumps(result, ensure_ascii=False, allow_nan=False))
 
 

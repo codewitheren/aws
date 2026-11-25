@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 import uuid
+from contextlib import aclosing
 from functools import lru_cache
 
 import jwt
@@ -37,6 +38,29 @@ def actor_id(context):
     return str(uuid.UUID(claims["sub"]))
 
 
+async def explain_events(actor, session, payload):
+    events = asyncio.Queue()
+    model = BedrockModel(model_id=MODEL, region_name=REGION, max_tokens=4096)
+    task = asyncio.create_task(explain(actor, session, payload.get("question"), model,
+                                       payload.get("conversation"), on_delta=events.put_nowait))
+    task.add_done_callback(lambda _: events.put_nowait(None))
+    try:
+        yield {"type": "start"}
+        while True:
+            try:
+                event = await asyncio.wait_for(events.get(), timeout=8)
+            except TimeoutError:
+                yield {"type": "pending"}
+                continue
+            if event is None:
+                break
+            yield event
+        yield {"type": "transfer", **task.result()}
+    finally:
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+
+
 @app.entrypoint
 async def invoke(payload, context):
     try:
@@ -58,17 +82,34 @@ async def invoke(payload, context):
             active_runs.add(key)
         try:
             if action == "explain":
-                task = asyncio.create_task(explain(actor, session, payload.get("question"),
-                    BedrockModel(model_id=MODEL, region_name=REGION, max_tokens=4096), payload.get("conversation")))
-            else:
-                task = asyncio.create_task(asyncio.to_thread(dispatch, actor, session, payload))
-            if writing:
-                task.add_done_callback(lambda _: active_runs.discard(key))
+                async with aclosing(explain_events(actor, session, payload)) as events:
+                    async for event in events:
+                        yield event
+                return
+            loop = asyncio.get_running_loop()
+            events = asyncio.Queue()
+
+            def on_activity(activity):
+                loop.call_soon_threadsafe(events.put_nowait, {"type": "activity", "activity": activity})
+
+            task = asyncio.create_task(asyncio.to_thread(dispatch, actor, session, payload, on_activity if writing else None))
+
+            def on_done(_):
+                if writing:
+                    active_runs.discard(key)
+                events.put_nowait(None)
+
+            task.add_done_callback(on_done)
             yield {"type": "start"}
-            while not task.done():
-                await asyncio.wait({task}, timeout=8)
-                if not task.done():
+            while True:
+                try:
+                    event = await asyncio.wait_for(events.get(), timeout=8)
+                except TimeoutError:
                     yield {"type": "pending"}
+                    continue
+                if event is None:
+                    break
+                yield event
             yield {"type": "transfer", **task.result()}
         except ValueError as exc:
             yield {"error": str(exc)}

@@ -1,17 +1,8 @@
 import {
-  CHECK_ORDER, STEP_ORDER,
-  type AgentError, type ApprovalRequest, type ApprovalResolution, type ChatEvent, type ChatLink, type CheckId,
-  type RunContext, type RunEvent, type RunSummary, type StepId, type TransferTypeId,
+  type AgentError, type ApprovalRequest, type ApprovalResolution, type ChatEvent, type ChatLink,
+  type RunActivity, type RunContext, type RunEvent, type RunSummary, type TransferTypeId,
 } from '../agent/types';
 import { config } from '../config';
-import { STEP_LABELS } from './labels';
-
-export type StepStatus = 'pending' | 'active' | 'done';
-
-export interface StepState {
-  status: StepStatus;
-  detail: string | null;
-}
 
 export type RunStatus = 'starting' | 'running' | 'awaiting_approval' | 'completed' | 'failed';
 
@@ -24,8 +15,7 @@ export interface RunState {
   status: RunStatus;
   request: Selection;
   context: RunContext | null;
-  steps: Record<StepId, StepState>;
-  checks: Record<CheckId, StepState>;
+  activity: RunActivity[];
   pendingApproval: ApprovalRequest | null;
   resolutions: ApprovalResolution[];
   summary: RunSummary | null;
@@ -55,7 +45,7 @@ export interface StoreState {
 export type StoreAction =
   | { type: 'select'; selection: Selection }
   | { type: 'run_requested'; selection?: Selection }
-  | { type: 'run_event'; event: RunEvent }
+  | { type: 'run_event'; event: RunEvent; at: string }
   | { type: 'respond_started' }
   | { type: 'respond_failed'; message: string }
   | { type: 'chat_asked'; id: string; question: string }
@@ -75,17 +65,12 @@ export function isActive(run: RunState | null): boolean {
   return run !== null && (run.status === 'starting' || run.status === 'running' || run.status === 'awaiting_approval');
 }
 
-function pendingRecord<K extends string>(keys: readonly K[]): Record<K, StepState> {
-  return Object.fromEntries(keys.map((k) => [k, { status: 'pending', detail: null }])) as Record<K, StepState>;
-}
-
 function newRun(request: Selection): RunState {
   return {
     status: 'starting',
     request,
     context: null,
-    steps: pendingRecord(STEP_ORDER),
-    checks: pendingRecord(CHECK_ORDER),
+    activity: [],
     pendingApproval: null,
     resolutions: [],
     summary: null,
@@ -97,30 +82,20 @@ function eventRunId(event: RunEvent): string | null {
   return event.type === 'run_started' ? event.run.runId : event.runId;
 }
 
-function applyRunEvent(run: RunState, event: RunEvent): { run: RunState; announcement?: string } {
+function applyRunEvent(run: RunState, event: RunEvent, at: string): { run: RunState; announcement?: string } {
+  const log = (title: string, detail?: string, kind: RunActivity['kind'] = 'decision'): RunActivity[] =>
+    [...run.activity, { id: 'ui-' + run.activity.length, at, kind, title, detail }];
   switch (event.type) {
     case 'run_started':
       return { run: { ...run, status: 'running', context: event.run } };
-    case 'step_started':
-      return {
-        run: { ...run, steps: { ...run.steps, [event.step]: { status: 'active', detail: null } } },
-        announcement: event.step === 'ready' ? undefined : STEP_LABELS[event.step],
-      };
-    case 'step_progress':
-      return { run: { ...run, steps: { ...run.steps, [event.step]: { ...run.steps[event.step], detail: event.detail } } } };
-    case 'step_completed':
-      return { run: { ...run, steps: { ...run.steps, [event.step]: { status: 'done', detail: event.detail ?? null } } } };
-    case 'check_progress':
-      return {
-        run: {
-          ...run,
-          checks: { ...run.checks, [event.check]: { status: event.status === 'done' ? 'done' : 'active', detail: event.detail ?? null } },
-        },
-      };
+    case 'run_activity':
+      if (run.activity.some((item) => item.id === event.activity.id)) return { run };
+      return { run: { ...run, activity: [...run.activity, event.activity] } };
     case 'approval_requested': {
       const a = event.approval;
       return {
-        run: { ...run, status: 'awaiting_approval', pendingApproval: a },
+        run: { ...run, status: 'awaiting_approval', pendingApproval: a,
+          activity: log(a.findingKey === 'official' ? 'Resmi koşu onayı bekleniyor' : a.title, a.found) },
         announcement: `Agent önerisi ${a.index} / ${a.total}: ${a.title}. ${a.question}`,
       };
     }
@@ -134,10 +109,13 @@ function applyRunEvent(run: RunState, event: RunEvent): { run: RunState; announc
           resolutions,
           pendingApproval: cleared ? null : run.pendingApproval,
           status: cleared ? 'running' : run.status,
+          activity: log(r.title, r.summary),
         },
         announcement: `${r.title}: ${r.summary}`,
       };
     }
+    case 'review_reset':
+      return { run: { ...run, resolutions: [] } };
     case 'run_completed':
       return {
         run: { ...run, status: 'completed', pendingApproval: null, summary: event.summary },
@@ -145,7 +123,8 @@ function applyRunEvent(run: RunState, event: RunEvent): { run: RunState; announc
       };
     case 'run_failed':
       return {
-        run: { ...run, status: 'failed', pendingApproval: null, error: event.error },
+        run: { ...run, status: 'failed', pendingApproval: null, error: event.error,
+          activity: log(event.error.code === 'no_data' ? 'Depo verisi bulunamadı' : 'Koşu durdu', undefined, 'error') },
         announcement: (event.error.code === 'no_data' ? '' : 'Optimizasyon tamamlanamadı: ') + event.error.message,
       };
   }
@@ -158,13 +137,13 @@ function applyChatEvent(state: StoreState, event: ChatEvent): StoreState {
     case 'chat_delta':
       return {
         ...state,
-        chat: state.chat.map((m) => (m.id === event.messageId ? { ...m, text: m.text + event.delta } : m)),
+        chat: state.chat.map((m) => (m.id === event.messageId ? { ...m, text: event.replace ? event.delta : m.text + event.delta } : m)),
       };
     case 'chat_message_completed':
       return {
         ...state,
         chatBusy: false,
-        chat: state.chat.map((m) => (m.id === event.messageId ? { ...m, status: 'done', links: event.links } : m)),
+        chat: state.chat.map((m) => (m.id === event.messageId ? { ...m, status: 'done', text: event.text ?? m.text, links: event.links } : m)),
       };
     case 'chat_failed': {
       const text = 'Yanıt alınamadı: ' + event.error.message;
@@ -192,7 +171,7 @@ export function reducer(state: StoreState, action: StoreAction): StoreState {
       const id = eventRunId(action.event);
       // Başka (eski) bir optimizasyona ait olayları yok say.
       if (run.context && id !== null && id !== run.context.runId) return state;
-      const next = applyRunEvent(run, action.event);
+      const next = applyRunEvent(run, action.event, action.at);
       const settled = action.event.type === 'approval_requested' || action.event.type === 'approval_resolved'
         || action.event.type === 'run_failed';
       return {

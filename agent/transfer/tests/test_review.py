@@ -74,8 +74,11 @@ class ReviewTest(unittest.TestCase):
             root = Path(directory)
             shutil.copytree(SNAPSHOT, root / "snapshot")
             original = relex_path(root / "snapshot", "cold").read_bytes()
-            review = run_worker(root, dict(JOB, action="prepare"))
+            activity = []
+            review = run_worker(root, dict(JOB, action="prepare"), activity.append)
             self.assertFalse(review["blocked"])
+            self.assertEqual(activity[0]["code"], "pandas.read_excel(...)")
+            self.assertEqual(activity[-1]["title"], "İnceleme bulguları hazır")
             self.assertEqual(len(review["motorHash"]), 64)
             found = next(check for check in review["checks"] if check.get("edits"))
             edit = found["edits"][0]
@@ -86,7 +89,10 @@ class ReviewTest(unittest.TestCase):
                 dict(approveOfficial=True, leaveRemaining=True, decisions=decisions))
             official_job = dict(JOB, checks=review["checks"], action="finish", revisions=revisions,
                                 reviewed=reviewed, motorHash=review["motorHash"])
-            official = run_worker(root, official_job)
+            activity.clear()
+            official = run_worker(root, official_job, activity.append)
+            self.assertEqual([e["kind"] for e in activity], ["data", "command", "output", "command", "check"])
+            self.assertIn("1 satıra onaylı miktar yazıldı", activity[0]["detail"])
             self.assertEqual(official["summary"]["revised"][0]["final"], 6)
             self.assertIn("revize_log.csv", official["files"])
             self.assertEqual(relex_path(root / "snapshot", "cold").read_bytes(), original)

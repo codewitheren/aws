@@ -23,7 +23,7 @@ export function KosuPage() {
 }
 
 function KosuForm({ merkezler }: { merkezler: MerkezOption[] }) {
-  const { state, actions } = useRunStore();
+  const { state, actions, mode } = useRunStore();
   const { selection, run } = state;
   const today = useMemo(() => new Date(), []);
   const [businessDay, setBusinessDay] = useState(() => new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Istanbul' }).format(today));
@@ -49,7 +49,8 @@ function KosuForm({ merkezler }: { merkezler: MerkezOption[] }) {
   const runLabel = run
     ? `${run.request.merkez} · ${typeLabel(run.request.merkez, run.request.transferType)}`
     : `${merkez.ad} · ${tip.ad}`;
-  const runDate = run?.context ? formatDate(new Date(run.context.runDate + 'T00:00:00')) : formatDate(today);
+  const panelDate = run?.context?.runDate ?? businessDay;
+  const runDate = panelDate ? formatDate(new Date(panelDate + 'T00:00:00')) : '';
 
   const ranToday = (merkezAd: string, tipId: string, fallback: string | null) => {
     if (run?.status === 'completed' && run.summary && run.request.merkez === merkezAd && run.request.transferType === tipId) {
@@ -120,7 +121,8 @@ function KosuForm({ merkezler }: { merkezler: MerkezOption[] }) {
 
       <RunStatusPanel
         run={run}
-        title={`${runLabel} · ${runDate}`}
+        title={[runLabel, runDate].filter(Boolean).join(' · ')}
+        mock={mode === 'mock'}
         announcement={state.announcement}
         responding={state.responding}
         responseError={state.responseError}

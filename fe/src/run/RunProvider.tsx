@@ -46,7 +46,7 @@ export function RunProvider({ client, children }: { client: AgentClient; childre
         requested = true;
         dispatch({ type: 'run_requested', selection: { merkez: event.run.merkez, transferType: event.run.transferType } });
       }
-      if (requested) dispatch({ type: 'run_event', event });
+      if (requested) dispatch({ type: 'run_event', event, at: new Date().toISOString() });
     });
     runHandle.current = handle;
     return () => handle?.abort();
@@ -62,7 +62,7 @@ export function RunProvider({ client, children }: { client: AgentClient; childre
     runHandle.current = client.startRun(
       { type: 'start_run', merkez: selection.merkez, transferType: selection.transferType, date },
       (event) => {
-        if (token === runToken.current) dispatch({ type: 'run_event', event });
+        if (token === runToken.current) dispatch({ type: 'run_event', event, at: new Date().toISOString() });
       },
     );
   }, [client]);

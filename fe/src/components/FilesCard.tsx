@@ -37,12 +37,9 @@ export function FilesCard({ sentLines, anomalyFile, alertsFile }: Props) {
   };
 
   return (
-    <section className="card" aria-labelledby="i1">
-      <div className="stack-s">
-        <h2 id="i1">Dosyalar</h2>
-        <span className="sub">Agent hiçbir sisteme yazmaz. Uygulamak için dosyaları indirin.</span>
-      </div>
-      <div className="grid-auto" style={{ gap: 10, ['--min' as string]: '220px' }}>
+    <section className="card results-files" aria-labelledby="i1">
+      <h2 id="i1">Dosyalar</h2>
+      <div className="file-list">
         <button type="button" className="btn btn-p btn-file" onClick={() => void get('transfer.xlsx')} disabled={busy} aria-describedby="xlsx-msg">
           <span>Transfer çıktısı</span>
           <small>.xlsx · {nf(sentLines)} satır · sevkiyata gider</small>
@@ -56,7 +53,7 @@ export function FilesCard({ sentLines, anomalyFile, alertsFile }: Props) {
           <small>.csv · {nf(alertsFile.rows.length)} uyarı</small>
         </button>
       </div>
-      <p id="xlsx-msg" className="sub" role="status">{busy ? 'Dosya hazırlanıyor…' : message}</p>
+      <p id="xlsx-msg" className="sub file-status" role="status">{busy ? 'Dosya hazırlanıyor…' : message}</p>
     </section>
   );
 }

@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from 'react';
+import { forecastName } from '../lib/format';
 import { Link } from '../router/router';
 import { useRunStore } from '../run/RunProvider';
 import { RichText } from './RichText';
@@ -17,7 +18,7 @@ export function ChatPanel({ suggestions }: { suggestions: string[] }) {
   };
 
   return (
-    <aside className="card" aria-labelledby="c1" style={{ flex: '1 1 320px' }}>
+    <aside className="card" aria-labelledby="c1">
       <div className="stack-s">
         <h2 id="c1">Agent'a sor</h2>
         <span className="sub">Bu optimizasyonun verisi üzerinden yanıtlar.</span>
@@ -32,7 +33,7 @@ export function ChatPanel({ suggestions }: { suggestions: string[] }) {
             ) : (
               <li key={m.id} className={'msg-agent' + (m.status === 'failed' ? ' failed' : '')}>
                 <span className="sr-only">Agent: </span>
-                {m.text ? <RichText text={m.text} /> : <p className="sub">Yanıt hazırlanıyor…</p>}
+                {m.text ? <RichText text={forecastName(m.text)} /> : <p className="sub">Yanıt hazırlanıyor…</p>}
                 {m.links.filter((l) => l.route.startsWith('/')).map((l) => (
                   <Link key={l.route} to={l.route}>{l.label}</Link>
                 ))}

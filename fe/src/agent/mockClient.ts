@@ -8,9 +8,8 @@ import type { AgentClient, StreamHandle } from './client';
 import { cannedAnswer } from './mockChat';
 import { interpretInstruction, medianSummary, unchangedSummary } from './mockInstruction';
 import type {
-  ApprovalRequest, ApprovalResolution, ApprovalResponse, CheckId, ChatEvent, RunContext, RunEvent, StartRunCommand,
+  ApprovalRequest, ApprovalResolution, ApprovalResponse, ChatEvent, RunActivity, RunContext, RunEvent, StartRunCommand,
 } from './types';
-import { CHECK_ORDER } from './types';
 
 type Timer = ReturnType<typeof setTimeout>;
 
@@ -90,21 +89,26 @@ class MockRun {
     if (!this.stopped) this.emit(event);
   }
 
+  private log(kind: RunActivity['kind'], title: string, detail?: string, code?: string): void {
+    this.send({ type: 'run_activity', runId: this.context.runId,
+      activity: { id: newId('activity'), at: new Date().toISOString(), kind, title, detail, code } });
+  }
+
   start(): void {
-    const runId = this.context.runId;
     this.at(0, () => {
       this.send({ type: 'run_started', run: this.context });
-      this.send({ type: 'step_started', runId, step: 'relex_read' });
+      this.log('command', 'Örnek veri seti açılıyor', this.context.merkez, 'data/sample.ts');
     });
-    this.at(900, () => {
-      const detail = this.lineCount !== null ? `${nf(this.lineCount)} öneri satırı okundu` : undefined;
-      this.send({ type: 'step_completed', runId, step: 'relex_read', detail });
-      this.send({ type: 'step_started', runId, step: 'outlier_review' });
+    this.at(600, () => {
+      const detail = this.lineCount !== null ? `${nf(this.lineCount)} örnek öneri satırı` : undefined;
+      this.log('data', 'Örnek Forecast tablosu hazır', detail);
+    });
+    this.at(1150, () => {
+      this.log('check', 'Örnek bulgular alındı', `${nf(this.pending.length)} öneri karşılaştırması`);
       if (this.pending.length === 0) {
         this.finishReview('Örnek veride bu merkez ve tip için aykırı öneri yok.');
         return;
       }
-      this.send({ type: 'step_progress', runId, step: 'outlier_review', detail: `${this.pending.length} aykırı öneri buldum. Onayınız bekleniyor` });
       this.askNext();
     });
   }
@@ -142,25 +146,11 @@ class MockRun {
 
   private finishReview(detail: string): void {
     const runId = this.context.runId;
-    this.send({ type: 'step_completed', runId, step: 'outlier_review', detail });
-    this.send({ type: 'step_started', runId, step: 'cutting_engine' });
-    const check = (c: CheckId, status: 'running' | 'done') => this.send({ type: 'check_progress', runId, check: c, status });
-    this.at(1400, () => {
-      this.send({ type: 'step_completed', runId, step: 'cutting_engine' });
-      this.send({ type: 'step_started', runId, step: 'agent_checks' });
-      check(CHECK_ORDER[0], 'running');
-    });
-    CHECK_ORDER.slice(1).forEach((c, i) => {
-      this.at(2100 + i * 700, () => {
-        check(CHECK_ORDER[i], 'done');
-        check(c, 'running');
-      });
-    });
-    this.at(4300, () => {
-      check(CHECK_ORDER[CHECK_ORDER.length - 1], 'done');
-      this.send({ type: 'step_completed', runId, step: 'agent_checks' });
-      this.send({ type: 'step_started', runId, step: 'ready' });
-      this.send({ type: 'step_completed', runId, step: 'ready' });
+    this.log('decision', 'Örnek inceleme tamamlandı', detail);
+    this.at(450, () => this.log('command', 'Örnek motor akışı oynatılıyor'));
+    this.at(1450, () => this.log('check', 'Örnek çıktı kontrolleri gösteriliyor'));
+    this.at(2450, () => {
+      this.log('output', 'Örnek akış tamamlandı');
       const applied = this.resolutions.filter((r) => r.outcome.kind === 'applied').length;
       const levels = RESULTS.alerts.map((a) => a.level);
       const count = (l: string) => (this.sample ? levels.filter((x) => x === l).length : 0);

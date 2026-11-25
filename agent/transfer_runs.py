@@ -7,12 +7,14 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+from threading import Thread
 from uuid import uuid4
 import zipfile
 
 import boto3
 from botocore.config import Config
 from botocore.exceptions import ClientError
+from transfer.run_activity import PREFIX as ACTIVITY_PREFIX, activity, count
 
 PACKAGE = Path(__file__).resolve().parent / "transfer"
 CENTERS = {"İzmir","Maltepe","Ankara","Adana","Diyarbakır","Arnavutköy"}
@@ -52,12 +54,29 @@ def commit(client, bucket, prefix, state, version):
         raise
 
 
-def run_worker(root, job):
+def run_worker(root, job, on_activity=None):
     (root/"job.json").write_text(json.dumps(job))
-    proc = subprocess.run([sys.executable, str(PACKAGE/"workflow.py"), str(root)], cwd=root,
-                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=900,
-                          env={**os.environ, "TRANSFER_RUN_HISTORY_DIR": str(root / "history")})
-    if proc.returncode:
+    with subprocess.Popen([sys.executable, str(PACKAGE/"workflow.py"), str(root)], cwd=root,
+                          stdout=subprocess.PIPE if on_activity else subprocess.DEVNULL,
+                          stderr=subprocess.DEVNULL, text=True, encoding="utf-8", errors="replace",
+                          env={**os.environ, "TRANSFER_RUN_HISTORY_DIR": str(root / "history")}) as proc:
+        def read_activity():
+            for line in proc.stdout:
+                if line.startswith(ACTIVITY_PREFIX):
+                    on_activity(json.loads(line[len(ACTIVITY_PREFIX):]))
+
+        reader = Thread(target=read_activity) if on_activity else None
+        if reader:
+            reader.start()
+        try:
+            returncode = proc.wait(timeout=900)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            raise
+        finally:
+            if reader:
+                reader.join()
+    if returncode:
         error = root/"error.txt"
         raise ValueError(error.read_text() if error.exists() else "Motor girdileri okunamadı. Kaynak erişimini ve dosya biçimini kontrol edin.")
     return json.loads((root/"result.json").read_text())
@@ -162,20 +181,34 @@ def index_run(client, bucket, actor, state):
 
 def cache_history(client, bucket, actor, center, day, kind, root):
     names = {"amb": "Ambient ve Su", "cold": "+4", "ms": "MS"}
+    cached = 0
     for category in ("ms", "cold") if kind == "ms" else (kind,):
         for when, key in previous_runs(client, bucket, actor, center, day, category):
             index, _ = read_json(client, bucket, key)
             path = root / "history" / when / names[category] / f"{center}.parquet"
             path.parent.mkdir(parents=True, exist_ok=True)
             client.download_file(bucket, index["artifacts"] + "/transfer.parquet", str(path))
+            cached += 1
+    return cached
 
 
-def dispatch(actor, session, payload):
+def dispatch(actor, session, payload, on_activity=None):
     client = boto3.client("s3", config=Config(signature_version="s3v4"))
     bucket = os.environ["RUN_BUCKET"]
     prefix = f"runs/{actor}/{session}"
     state, version = state_for(client, bucket, prefix)
     action = payload["action"]
+
+    history = list((state or {}).get("activity", []))
+
+    def record(event):
+        history.append(event)
+        if on_activity:
+            on_activity(event)
+
+    def emit(*args, **kwargs):
+        record(activity(*args, **kwargs))
+
     if action == "status":
         return visible(state)
     if action == "review_page" and state and state["stage"] in ("review", "blocked"):
@@ -211,7 +244,8 @@ def dispatch(actor, session, payload):
             if exc.response["ResponseMetadata"]["HTTPStatusCode"] != 412:
                 raise
         state = {k: v for k, v in state.items() if k not in ("artifacts", "summary", "revisions", "reviewed", "completedAt")}
-        state.update(stage="review", lastRevert=log)
+        emit("decision", "Revizeler geri alındı", "Özgün girdi kopyasıyla inceleme yeniden açıldı")
+        state.update(stage="review", lastRevert=log, activity=history)
         return visible(commit(client, bucket, prefix, state, version))
     with tempfile.TemporaryDirectory() as directory:
         root = Path(directory)
@@ -225,8 +259,11 @@ def dispatch(actor, session, payload):
             day = date.fromisoformat(raw_date).isoformat()
             if center not in CENTERS or kind not in {"amb", "cold", "ms"} or (center == "Diyarbakır" and kind == "ms"):
                 raise ValueError("Merkez veya transfer tipi geçersiz.")
-            cache_history(client, bucket, actor, center, day, kind, root)
-            review = run_worker(root, dict(action=action, center=center, kind=kind, date=day))
+            emit("command", "Geçmiş transferler aranıyor", f"{center} · {day}", "cache_history()")
+            cached = cache_history(client, bucket, actor, center, day, kind, root)
+            emit("data", "Oturumun geçmiş taraması tamamlandı", f"{count(cached)} önceki Parquet indirildi")
+            emit("command", "Python işçisi başlatıldı", "Girdi kopyası ve taslak motor", "python workflow.py <çalışma dizini>")
+            review = run_worker(root, dict(action=action, center=center, kind=kind, date=day), record)
             draft = review.pop("draft")
             blocked = review.pop("blocked")
             state = dict(stage="blocked" if blocked else "review", kind=kind, center=center, date=day, **review)
@@ -240,22 +277,30 @@ def dispatch(actor, session, payload):
                 draft_key = attempt + "/taslak.parquet"
                 client.upload_file(draft, bucket, draft_key)
                 state.update(snapshot=snapshot, draft=draft_key)
+                emit("output", "Girdi kopyası ve taslak kaydedildi", code="snapshot.zip · taslak.parquet")
         elif action == "finish" and state:
             if state["stage"] == "ready":
                 if state.get("completedAt"):
                     index_run(client, bucket, actor, state)
                 return visible(state)
             revisions, reviewed = approved_revisions(state, payload)
+            emit("decision", "Resmi koşu onayı doğrulandı",
+                 f"{count(len(reviewed))} bulgu kararı · {count(len(revisions))} onaylı satır değişikliği")
+            emit("command", "Girdi kopyası geri yükleniyor", code="download_snapshot()")
             download_snapshot(client, bucket, state, root)
-            result = run_worker(root, dict(state, action="finish", revisions=revisions, reviewed=reviewed))
+            emit("command", "Python işçisi başlatıldı", "Resmi motor ve çıktı denetimi", "python workflow.py <çalışma dizini>")
+            result = run_worker(root, dict(state, action="finish", revisions=revisions, reviewed=reviewed), record)
+            emit("command", "Çıktılar kaydediliyor", code="S3 upload_file()")
             for name, path in result["files"].items():
                 client.upload_file(path, bucket, attempt + "/" + name)
             client.put_object(Bucket=bucket, Key=attempt + "/depots.json", Body=json.dumps(result["depots"]).encode())
             client.put_object(Bucket=bucket, Key=attempt + "/view.json", Body=json.dumps(result["view"]).encode())
+            emit("output", "Dosyalar ve sonuç ekranı kaydedildi", code=" · ".join(result["files"]))
             state.update(stage="ready", artifacts=attempt, summary=result["summary"], revisions=revisions,
                          reviewed=reviewed, completedAt=datetime.now(timezone.utc).isoformat())
         else:
             raise ValueError("Bu işlem için geçerli bir optimizasyon gerekli.")
+        state["activity"] = history
         saved = commit(client, bucket, prefix, state, version)
         if action == "finish" and saved and saved.get("completedAt"):
             index_run(client, bucket, actor, saved)

@@ -6,8 +6,9 @@
 import { forecastName, nf } from '../lib/format';
 import type { AgentClient } from './client';
 import { readEventStream } from './sse';
-import type {
-  ApprovalOption, ApprovalOutcome, ApprovalRequest, ChatEvent, RunEvent, TransferTypeId,
+import {
+  isRunActivity, type ApprovalOption, type ApprovalOutcome, type ApprovalRequest, type ChatEvent,
+  type RunActivity, type RunEvent, type RunRevision, type TransferTypeId,
 } from './types';
 
 // ---- Yapılandırma ve giriş ----
@@ -107,8 +108,16 @@ async function accessToken(): Promise<string> {
 
 // ---- Runtime çağrısı ----
 
-/** Backend `start` → `pending`… → `transfer` olaylarını akıtır; `transfer` gövdesini döndürür. */
-async function invoke<T>(session: string, payload: Record<string, unknown>, signal?: AbortSignal): Promise<T> {
+/** Backend ara olayları akıtır; son `transfer` gövdesini döndürür. */
+async function invoke<T>(
+  session: string,
+  payload: Record<string, unknown>,
+  signal?: AbortSignal,
+  handlers?: {
+    onChatDelta?: (delta: string, replace: boolean) => void;
+    onActivity?: (activity: RunActivity) => void;
+  },
+): Promise<T> {
   const { runtimeArn } = await loadConfig();
   const res = await fetch(`/runtimes/${encodeURIComponent(runtimeArn)}/invocations?qualifier=DEFAULT`, {
     method: 'POST',
@@ -130,7 +139,11 @@ async function invoke<T>(session: string, payload: Record<string, unknown>, sign
     let v: any;
     try { v = JSON.parse(data); } catch { return; }
     if (v?.error) out.error ??= String(v.error);
-    else if (v?.type === 'transfer') {
+    else if (v?.type === 'chat_delta' && typeof v.delta === 'string') {
+      handlers?.onChatDelta?.(v.delta, v.replace === true);
+    } else if (v?.type === 'activity' && isRunActivity(v.activity)) {
+      handlers?.onActivity?.(v.activity);
+    } else if (v?.type === 'transfer') {
       const { type: _t, ...rest } = v;
       out.result ??= rest as T;
     }
@@ -162,6 +175,7 @@ export interface BackendSummary {
   limits: { ad: string; deger: number; limit: number; birim: string }[];
   alerts: { level: 'hata' | 'uyari' | 'bilgi'; name: string; evidence: string }[];
   applied: number; reviewed: number;
+  revised?: RunRevision[];
 }
 
 interface Page { checks: Check[]; remaining: number; offset: number }
@@ -171,6 +185,8 @@ interface BackendState extends Partial<Page> {
   center?: string; kind?: 'amb' | 'cold' | 'ms'; date?: string;
   rows?: number; legacy?: boolean;
   summary?: BackendSummary;
+  activity?: RunActivity[];
+  completedAt?: string;
 }
 
 export interface LiveRun {
@@ -339,6 +355,16 @@ export function createAgentCoreClient(): AgentClient {
     run: { runId: a.run.session, merkez: a.run.merkez, transferType: a.run.transferType, transferTypeLabel: TYPE_LABEL[a.run.transferType], runDate: a.run.runDate },
   });
 
+  const receiveActivity = (a: Active, activity: RunActivity) =>
+    a.emit({ type: 'run_activity', runId: a.run.session, activity });
+
+  const log = (a: Active, kind: RunActivity['kind'], title: string, detail?: string, code?: string) =>
+    receiveActivity(a, { id: crypto.randomUUID(), at: new Date().toISOString(), kind, title, detail, code });
+
+  const replayActivity = (a: Active, state: BackendState) => {
+    state.activity?.filter(isRunActivity).forEach((activity) => receiveActivity(a, activity));
+  };
+
   const pendingChecks = (a: Active) => a.run.checks.filter((c) => needsDecision(c) && !(c.id in a.run.decisions));
 
   /** Sonraki sayfayı getirir; bulguları listeye ekler. */
@@ -347,6 +373,7 @@ export function createAgentCoreClient(): AgentClient {
     a.run.checks.push(...page.checks);
     a.offset = page.offset;
     a.remaining = page.remaining;
+    log(a, 'data', 'İnceleme sayfası alındı', `${nf(page.checks.length)} bulgu · ${nf(page.remaining)} sırada`);
   };
 
   const askNext = async (a: Active) => {
@@ -367,18 +394,10 @@ export function createAgentCoreClient(): AgentClient {
       approval: approvalFor(c, asked.indexOf(c) + 1, asked.length, a.remaining) });
   };
 
-  const completed = (a: Active, s: BackendSummary) => {
+  const completed = (a: Active, s: BackendSummary, finishedAt?: string) => {
     const id = a.run.session;
     const count = (l: string) => s.alerts.filter((x) => x.level === l).length;
     const cutPct = s.cut.adet ?? Object.values(s.cut)[0];
-    a.emit({ type: 'step_completed', runId: id, step: 'cutting_engine', detail: `${nf(s.sent)} satır gönderiliyor` });
-    a.emit({ type: 'step_started', runId: id, step: 'agent_checks' });
-    a.emit({ type: 'check_progress', runId: id, check: 'run_integrity', status: 'done', detail: 'Merkez eşleşmesi ve All PL doğrulandı' });
-    a.emit({ type: 'check_progress', runId: id, check: 'faulty_output', status: 'done', detail: `${count('hata')} kritik bulgu` });
-    a.emit({ type: 'check_progress', runId: id, check: 'relex_anomalies', status: 'done', detail: `${nf(s.reviewed)} bulgu incelendi, ${nf(s.applied)} satır revize edildi` });
-    a.emit({ type: 'check_progress', runId: id, check: 'depot_cuts', status: 'done', detail: cutPct !== undefined ? `Kısma oranı %${nf(cutPct, 1)}` : 'Tamamlandı' });
-    a.emit({ type: 'step_completed', runId: id, step: 'agent_checks' });
-    a.emit({ type: 'step_completed', runId: id, step: 'ready' });
     a.emit({
       type: 'run_completed', runId: id,
       summary: {
@@ -386,7 +405,8 @@ export function createAgentCoreClient(): AgentClient {
           + (cutPct !== undefined ? `, kısma oranı %${nf(cutPct, 1)}.` : '.') + ` ${count('hata')} kritik, ${count('uyari')} uyarı var.`,
         counts: { kritik: count('hata'), uyari: count('uyari'), bilgi: count('bilgi') },
         corrections: { applied: s.applied, unchanged: Math.max(0, s.reviewed - s.applied) },
-        finishedAt: new Date().toISOString(),
+        revisions: s.revised,
+        finishedAt: finishedAt ?? new Date().toISOString(),
         resultsAvailable: true,
       },
     });
@@ -394,19 +414,18 @@ export function createAgentCoreClient(): AgentClient {
 
   const finish = async (a: Active) => {
     const id = a.run.session;
-    a.emit({ type: 'step_completed', runId: id, step: 'outlier_review',
-      detail: `${nf(Object.keys(a.run.decisions).length)} karar · resmi optimizasyon onaylandı` });
-    a.emit({ type: 'step_started', runId: id, step: 'cutting_engine' });
-    a.emit({ type: 'step_progress', runId: id, step: 'cutting_engine', detail: 'Motor çalışıyor; büyük merkezlerde birkaç dakika sürebilir' });
+    log(a, 'command', 'Resmi koşu Runtime’a gönderiliyor', undefined, 'action: "finish"');
     try {
       const state = await invoke<BackendState>(id, {
         action: 'finish', approveOfficial: true, decisions: a.run.decisions, offset: a.offset,
         leaveRemaining: a.remaining > 0,
-      }, a.signal);
+      }, a.signal, { onActivity: (activity) => receiveActivity(a, activity) });
       if (state.stage !== 'ready' || !state.summary) throw new Error('Motor sonucu alınamadı.');
+      replayActivity(a, state);
+      log(a, 'output', 'Resmi sonuçlar alındı', `${nf(state.summary.sent)} gönderim satırı · ${nf(state.summary.applied)} revizyon`);
       a.run.summary = state.summary;
       current = a.run;
-      completed(a, state.summary);
+      completed(a, state.summary, state.completedAt);
     } catch (err) {
       fail(a, err);
     }
@@ -416,6 +435,7 @@ export function createAgentCoreClient(): AgentClient {
   const review = (a: Active, state: BackendState) => {
     const id = a.run.session;
     const checks = state.checks ?? [];
+    replayActivity(a, state);
     a.run.checks = [...checks];
     a.offset = state.offset ?? 0;
     a.remaining = state.remaining ?? 0;
@@ -424,7 +444,6 @@ export function createAgentCoreClient(): AgentClient {
     const other = errors.length === 1 && /merkezi uyuşmuyor/i.test(errors[0].title)
       ? errors[0].evidence.match(/tespit edilen merkez ([^.]+)\./)?.[1] : undefined;
     if (other !== undefined) {
-      a.emit({ type: 'step_completed', runId: id, step: 'relex_read', detail: `${a.run.merkez} için depo verisi yok` });
       a.emit({ type: 'run_failed', runId: id, error: { code: 'no_data',
         message: `${a.run.merkez} için depo verisi bulunamadı. Forecast girdisinde ${other === 'belirsiz' ? 'tanınan bir merkez yok' : `yalnız ${other} depoları var`}; o merkezi seçerek optimizasyonu başlatabilirsiniz.` } });
       return;
@@ -432,15 +451,10 @@ export function createAgentCoreClient(): AgentClient {
     if (state.stage === 'blocked' || errors.length) {
       const why = state.legacy ? 'Bu inceleme eski sürümle başlatılmış; yeni optimizasyon başlatın.'
         : errors.map((c) => `${forecastName(c.title)}: ${forecastName(c.evidence)}`).join(' · ');
-      a.emit({ type: 'step_completed', runId: id, step: 'relex_read', detail: 'Kritik girdi hatası; motor çalıştırılmadı' });
       return fail(a, new Error('Kritik girdi bulgusu var; motor çalıştırılmadı. ' + why + ' · Merkez seçimini ve iş tarihini kontrol edin; girdi eskiyse Google Sheet güncellendikten sonra yeniden deneyin.'));
     }
     const total = checks.length + a.remaining;
-    const info = checks.filter((c) => c.level === 'bilgi').length;
-    a.emit({ type: 'step_completed', runId: id, step: 'relex_read',
-      detail: `${nf(state.rows ?? 0)} öneri satırı okundu · ${nf(total)} bulgu` + (info && !a.remaining ? ` (${nf(info)} bilgi)` : '') });
-    a.emit({ type: 'step_started', runId: id, step: 'outlier_review' });
-    a.emit({ type: 'step_progress', runId: id, step: 'outlier_review', detail: 'Uyarılar için kararınız bekleniyor' });
+    log(a, 'data', 'İnceleme sonuçları alındı', `${nf(state.rows ?? 0)} öneri satırı · ${nf(total)} bulgu`);
     void askNext(a);
   };
 
@@ -465,9 +479,9 @@ export function createAgentCoreClient(): AgentClient {
       chat.length = 0;
       const { a, handle } = begin(run, onEvent);
       started(a);
-      a.emit({ type: 'step_started', runId: run.session, step: 'relex_read' });
-      a.emit({ type: 'step_progress', runId: run.session, step: 'relex_read', detail: 'Girdiler okunuyor, kontroller ve taslak motor çalışıyor…' });
-      invoke<BackendState>(run.session, { action: 'prepare', center: run.merkez, kind: KIND[run.transferType], date: run.runDate }, a.signal)
+      log(a, 'command', 'İnceleme isteği Runtime’a gönderiliyor', `${run.merkez} · ${run.runDate}`, 'action: "prepare"');
+      invoke<BackendState>(run.session, { action: 'prepare', center: run.merkez, kind: KIND[run.transferType], date: run.runDate },
+        a.signal, { onActivity: (activity) => receiveActivity(a, activity) })
         .then((state) => review(a, state))
         .catch((err) => fail(a, err));
       return handle;
@@ -488,11 +502,14 @@ export function createAgentCoreClient(): AgentClient {
           if (state.kind) run.transferType = TYPE_OF[state.kind];
           started(a);
           if (state.stage !== 'ready') return review(a, state);
-          run.summary = state.summary!;
+          if (!state.summary) throw new Error('Motor sonucu alınamadı.');
+          replayActivity(a, state);
+          run.summary = state.summary;
           current = run;
-          a.emit({ type: 'step_completed', runId: run.session, step: 'relex_read', detail: `${nf(state.rows ?? 0)} öneri satırı okundu` });
-          a.emit({ type: 'step_completed', runId: run.session, step: 'outlier_review', detail: `${nf(run.summary.applied)} satır revize edildi` });
-          completed(a, run.summary);
+          if (!state.activity?.length) {
+            log(a, 'output', 'Kayıtlı optimizasyon yüklendi', `${nf(run.summary.sent)} gönderim satırı · ${nf(run.summary.applied)} revizyon`);
+          }
+          completed(a, run.summary, state.completedAt);
         })
         .catch((err) => fail(a, err))
         .finally(() => { if (!a.signal.aborted) doneRestoring(); });
@@ -517,6 +534,7 @@ export function createAgentCoreClient(): AgentClient {
         a.emit({ type: 'approval_resolved', runId: a.run.session, resolution: {
           approvalId: OFFICIAL, findingKey: OFFICIAL, title: 'Resmi optimizasyon', originalValue: 0,
           outcome: { kind: 'unchanged', reason: 'rejected' }, summary: 'Kararlar sıfırlandı', decidedBy: 'user' } });
+        a.emit({ type: 'review_reset', runId: a.run.session });
         return void askNext(a);
       }
       const pending = pendingChecks(a);
@@ -530,7 +548,7 @@ export function createAgentCoreClient(): AgentClient {
           ? { kind: 'applied', value: values!.reduce<number>((s, v, i) => s + (v ?? edits[i].current), 0), method: note ? 'instruction' : 'median' }
           : { kind: 'unchanged', reason: note ? 'instruction_note' : 'rejected' };
         const summary = !edits.length ? 'Görüldü, devam edildi'
-          : changed ? `${nf(changed)} satır revize edildi` + (edits.length === 1 && values![0] !== null ? ` (${nf(edits[0].current)} → ${nf(values![0]!)})` : '')
+          : changed ? `${nf(changed)} satır için değişiklik onaylandı` + (edits.length === 1 && values![0] !== null ? ` (${nf(edits[0].current)} → ${nf(values![0]!)})` : '')
           : 'Olduğu gibi bırakıldı';
         a.emit({ type: 'approval_resolved', runId: a.run.session, resolution: {
           approvalId: 'check-' + x.id, findingKey: x.id, title: forecastName(x.title),
@@ -566,11 +584,16 @@ export function createAgentCoreClient(): AgentClient {
         return { abort: () => controller.abort() };
       }
       emit({ type: 'chat_message_started', messageId: id });
-      invoke<{ answer: string }>(run.session, { action: 'explain', question: command.question, conversation: chat.slice(-3) }, controller.signal)
+      invoke<{ answer: string }>(
+        run.session,
+        { action: 'explain', question: command.question, conversation: chat.slice(-3) },
+        controller.signal,
+        { onChatDelta: (delta, replace) => emit({ type: 'chat_delta', messageId: id, delta, replace }) },
+      )
         .then(({ answer }) => {
+          if (controller.signal.aborted) return;
           chat.push({ question: command.question.slice(0, 2000), answer: answer.slice(0, 5000) });
-          emit({ type: 'chat_delta', messageId: id, delta: forecastName(answer) });
-          emit({ type: 'chat_message_completed', messageId: id, links: [] });
+          emit({ type: 'chat_message_completed', messageId: id, text: answer, links: [] });
         })
         .catch((err) => {
           if (!controller.signal.aborted) emit({ type: 'chat_failed', messageId: id, error: { code: 'agent_error', message: err instanceof Error ? err.message : String(err) } });

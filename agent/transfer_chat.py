@@ -1,5 +1,6 @@
 """Evidence tools for the Strands analyst. Official writes stay in the run API."""
 import asyncio
+from contextlib import aclosing
 from datetime import date
 from io import BytesIO
 import json
@@ -30,7 +31,7 @@ def parquet(client, bucket, key):
         return pd.read_parquet(BytesIO(body.read()))
 
 
-async def explain(actor, session, question, model, conversation=None):
+async def explain(actor, session, question, model, conversation=None, *, on_delta):
     if not isinstance(question, str) or not 0 < len(question.strip()) <= 2000:
         raise ValueError("1–2000 karakterlik bir soru gerekli.")
     messages = []
@@ -204,11 +205,24 @@ async def explain(actor, session, question, model, conversation=None):
              kosu_uyarilari, motor_parametreleri, senaryo_kos]
     agent = Agent(model=model, system_prompt=(PACKAGE / "SKILL.md").read_text(), tools=tools, messages=messages, callback_handler=None)
     context = dict(merkez=center, tarih=day, secili_kategori=selected, asama=state["stage"])
+    prompt = f"Koşu bağlamı: {json.dumps(context, ensure_ascii=False)}\nKullanıcının sorusu: {question}"
+    result = None
+    streamed_text = False
+    replace = False
     try:
-        result = await agent.invoke_async(
-            f"Koşu bağlamı: {json.dumps(context, ensure_ascii=False)}\nKullanıcının sorusu: {question}",
-            limits={"turns": 7},
-        )
+        async with aclosing(agent.stream_async(prompt, limits={"turns": 7})) as events:
+            async for event in events:
+                if "messageStart" in event.get("event", {}):
+                    # A new model message may follow a tool call or retry.
+                    replace = streamed_text
+                if delta := event.get("data"):
+                    on_delta({"type": "chat_delta", "delta": delta, "replace": replace})
+                    streamed_text = True
+                    replace = False
+                if "result" in event:
+                    result = event["result"]
     except MaxTokensReachedException:
         return {"answer": "Yanıt sınırına ulaşıldı. Bir depo, ürün veya metrikle tekrar sorabilirsiniz."}
+    if result is None:
+        raise RuntimeError("Strands stream ended without a result")
     return {"answer": str(result)}
